@@ -14,7 +14,7 @@ geändert haben.
 |---|---|---|
 | `0001-moonraker-lane-data-filament-id.patch` | Der eingebaute Moonraker-Agent wählt beim Filament-Sync das Profil über `filament_id` / `setting_id` aus Moonrakers `lane_data` statt nur über den Materialtyp. Damit landen die Spoolman-Profile (`SM000010`, …) automatisch im richtigen Slot. Übernommen aus Orca-PR [#14423](https://github.com/OrcaSlicer/OrcaSlicer/pull/14423) (Autor: Broncosis). | #14423 in Orca übernommen ist |
 | `0002-plugin-audit-linux-config-dir.patch` | Plugin-Sandbox: Unter Linux liegt Orcas Datenordner in `~/.config/OrcaSlicer`. Der Teil `.config` passte auf das Sperrwort „conf“, sodass Plugins im gesamten Datenordner nichts lesen oder schreiben durften. Geprüft wird jetzt nur noch der Teil des Pfads unterhalb des erlaubten Ordners; Pfade außerhalb und sensible Ordner darin (`cert`, `secret`, `conf`) bleiben gesperrt. Mit Unit-Test. | Orca den Fehler behebt |
-| `0003-plugin-host-slice-statistics.patch` | Neue Plugin-Funktion `orca.host.slice_statistics()`: Materialverbrauch des letzten Slicens pro Filament (Modell, Stützen, Turm, Spülen, gesamt in mm³, dazu Durchmesser und Dichte), dieselben Zahlen wie in Orcas Vorschau-Legende. Nur lesend. Das Kobra-Spoolman-Plugin zeigt damit nach dem Slicen den Verbrauch pro Slot und warnt, wenn eine Spule nicht reicht. | Orcas Plugin-API die Slice-Statistik selbst anbietet |
+| `0003-plugin-host-slice-statistics.patch` | Neue Plugin-Funktion `orca.host.slice_statistics()`: Materialverbrauch des letzten Slicens pro Filament (Modell, Stützen, Turm, Spülen, gesamt in mm³, dazu Durchmesser, Dichte und wie oft das Filament geladen wird), dieselben Zahlen wie in Orcas Vorschau-Legende. Nur lesend. Das Kobra-Spoolman-Plugin zeigt damit nach dem Slicen den Verbrauch pro Slot und warnt, wenn eine Spule nicht reicht. | Orcas Plugin-API die Slice-Statistik selbst anbietet |
 
 Ist ein Patch inzwischen in Orca enthalten, wird er beim Build automatisch übersprungen
 (steht dann so in den Release-Notizen) und kann hier gelöscht werden.
@@ -27,7 +27,9 @@ Am bequemsten mit dem Starter aus `tools/`:
 tools/install.sh
 ```
 
-Danach steht im Anwendungsmenü **„OrcaSlicer (Kobra)“**. Der Starter
+Danach steht im Anwendungsmenü **„OrcaSlicer (Kobra)“** – mit eigenem Icon (Orca-Logo mit
+orangem Spulen-Abzeichen, `tools/orca-kobra.svg`), damit man ihn neben einem normalen Orca
+auseinanderhält. Der Starter
 
 - lädt beim ersten Mal die neueste Version nach `~/Applications`,
 - startet sonst sofort die installierte Version und lädt eine neuere im Hintergrund
