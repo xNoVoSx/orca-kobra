@@ -27,11 +27,11 @@ for p in "${list[@]}"; do
               | sed -e 's/^Subject: *//' -e 's/^\[PATCH[^]]*\] *//')
     if git -C "$SRC" apply --check "$p" 2>/dev/null; then
         git -C "$SRC" apply "$p"
-        echo "- angewendet: \`$name\` - $subject" | tee -a "$REPORT"
+        echo "- applied: \`$name\` - $subject" | tee -a "$REPORT"
     elif git -C "$SRC" apply --reverse --check "$p" 2>/dev/null; then
-        echo "- uebersprungen (schon in Orca enthalten): \`$name\` - $subject" | tee -a "$REPORT"
+        echo "- skipped (already in Orca): \`$name\` - $subject" | tee -a "$REPORT"
     else
-        echo "::error title=Patch passt nicht mehr::$name laesst sich nicht auf den aktuellen Orca-Stand anwenden"
+        echo "::error title=Patch no longer applies::$name does not apply to the current Orca source"
         git -C "$SRC" apply --check -v "$p" || true
         exit 1
     fi

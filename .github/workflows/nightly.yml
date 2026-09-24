@@ -211,9 +211,9 @@ jobs:
           set -euo pipefail
           sha="${{ needs.check.outputs.upstream_sha }}"
           {
-            echo "OrcaSlicer ${{ steps.name.outputs.version }} (main) mit Kobra-Patches."
+            echo "OrcaSlicer ${{ steps.name.outputs.version }} (main) with Kobra patches."
             echo
-            echo "Orca-Stand: [\`${sha:0:12}\`](https://github.com/${UPSTREAM}/commit/${sha})"
+            echo "Orca commit: [\`${sha:0:12}\`](https://github.com/${UPSTREAM}/commit/${sha})"
             echo
             echo "### Patches"
             cat patch-report.md
