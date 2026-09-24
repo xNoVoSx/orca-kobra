@@ -27,6 +27,8 @@ repository, by date. Format based on [Keep a Changelog](https://keepachangelog.c
   ("applied", "skipped (already in Orca)").
 - Nightly: finding the built AppImage no longer parses `ls` and fails with a clear error if there
   is none.
+- Launcher and `install.sh`: optional tools (`notify-send`, `update-desktop-database`,
+  `xdg-icon-resource`) are called through explicit `if` blocks instead of `A && B || true`.
 
 ## 2026-09-25
 

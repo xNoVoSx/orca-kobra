@@ -29,7 +29,11 @@ LOG="${XDG_STATE_HOME:-$HOME/.local/state}/orca-kobra.log"
 mkdir -p "$DIR" "$(dirname "$LOG")"
 
 say() { printf '%s %s\n' "$(date '+%F %T')" "$*" >> "$LOG"; [ -t 1 ] && echo "$*"; }
-notify() { command -v notify-send >/dev/null 2>&1 && notify-send -a "Orca Kobra" -i "${ICON:-orca-kobra}" "Orca Kobra" "$1" || true; }
+notify() {
+    if command -v notify-send >/dev/null 2>&1; then
+        notify-send -a "Orca Kobra" -i "${ICON:-orca-kobra}" "Orca Kobra" "$1" || true
+    fi
+}
 
 # Neuestes Release: gibt "name<TAB>appimage-url<TAB>sha256-url" aus (leer bei Fehler)
 latest() {

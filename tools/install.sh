@@ -14,8 +14,8 @@ DIR="${ORCA_KOBRA_DIR:-$HOME/Applications}"
 if [ "${1:-}" = "--remove" ]; then
     rm -f "$BIN/orca-kobra" "$APPS/orca-kobra.desktop" "$ICONS/scalable/apps/orca-kobra.svg"
     for s in $ICON_SIZES 192; do rm -f "$ICONS/${s}x${s}/apps/orca-kobra.png"; done
-    command -v update-desktop-database >/dev/null && update-desktop-database "$APPS" || true
-    command -v xdg-icon-resource >/dev/null && xdg-icon-resource forceupdate || true
+    if command -v update-desktop-database >/dev/null; then update-desktop-database "$APPS" || true; fi
+    if command -v xdg-icon-resource >/dev/null; then xdg-icon-resource forceupdate || true; fi
     echo "Starter entfernt. AppImages liegen weiter in $DIR."
     exit 0
 fi
@@ -71,9 +71,9 @@ Actions=Update;
 Name=Nach Update suchen
 Exec=$BIN/orca-kobra --update
 EOF
-command -v update-desktop-database >/dev/null && update-desktop-database "$APPS" || true
+if command -v update-desktop-database >/dev/null; then update-desktop-database "$APPS" || true; fi
 # Icon-Caches der Desktops (KDE, GNOME, ...) auffrischen, sonst bleibt das alte/leere Icon stehen
-command -v xdg-icon-resource >/dev/null && xdg-icon-resource forceupdate || true
+if command -v xdg-icon-resource >/dev/null; then xdg-icon-resource forceupdate || true; fi
 
 echo "Fertig."
 echo "  Starter:  $BIN/orca-kobra   (Menue: \"OrcaSlicer (Kobra)\")"
