@@ -1,2 +1,4 @@
+* text=auto eol=lf
+# Patches Byte fuer Byte unveraendert lassen (Leerzeichen am Zeilenende gehoeren zum Diff)
 *.patch -text
-*.sh text eol=lf
+*.png binary

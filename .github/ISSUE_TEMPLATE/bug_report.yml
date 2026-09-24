@@ -1,0 +1,42 @@
+name: Bug report
+description: Something does not work as described
+labels: [bug]
+body:
+  - type: markdown
+    attributes:
+      value: Thanks for reporting! Please fill in what you can - logs help the most.
+  - type: dropdown
+    id: component
+    attributes:
+      label: Component
+      options:
+        - "Patch 0001 (preset via lane_data.filament_id)"
+        - "Patch 0002 (plugin sandbox on Linux)"
+        - "Patch 0003 (slice statistics for plugins)"
+        - "Launcher / tools/install.sh"
+        - "Nightly build / release"
+        - "Documentation"
+        - "Other"
+    validations:
+      required: true
+  - type: textarea
+    id: what
+    attributes:
+      label: What happened / what did you expect?
+    validations:
+      required: true
+  - type: textarea
+    id: steps
+    attributes:
+      label: Steps to reproduce
+  - type: input
+    id: versions
+    attributes:
+      label: Versions
+      description: Output of `orca-kobra --status` (or the AppImage file name), Linux distribution and desktop
+  - type: textarea
+    id: logs
+    attributes:
+      label: Logs
+      description: "`~/.local/state/orca-kobra.log`, `~/.config/OrcaSlicer/log/`, link to a failed nightly run"
+      render: text

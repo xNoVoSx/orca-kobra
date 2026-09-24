@@ -195,7 +195,10 @@ jobs:
         run: |
           set -euo pipefail
           ver=$(grep 'set(SoftFever_VERSION' orca/version.inc | cut -d '"' -f2)
-          src=$(ls orca/build/OrcaSlicer_Linux_V*.AppImage | head -1)
+          shopt -s nullglob
+          apps=(orca/build/OrcaSlicer_Linux_V*.AppImage)
+          [ ${#apps[@]} -gt 0 ] || { echo "::error::No AppImage found in orca/build"; exit 1; }
+          src=${apps[0]}
           sha="${{ needs.check.outputs.upstream_sha }}"
           out="OrcaSlicer-Kobra_${ver}_$(date -u +%Y%m%d)_${sha:0:7}_x86_64.AppImage"
           mv "$src" "$out"

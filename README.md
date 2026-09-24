@@ -1,81 +1,123 @@
+<div align="center">
+
 # orca-kobra
 
-Nightly build of **[OrcaSlicer](https://github.com/OrcaSlicer/OrcaSlicer) (main)** for Linux,
-with a small set of patches for the **Anycubic Kobra S1 with ACE 2 Pro** (Rinkhals/Moonraker)
-and the Spoolman integration via `ace-lane-bridge`.
+**Nightly OrcaSlicer for Linux with a few small patches for the Anycubic Kobra S1 with ACE 2 Pro and Spoolman — self-updating.**
 
-Every night the build fetches the current Orca source, applies the patches from `patches/` and
-publishes an AppImage under **Releases**. It only builds when Orca or the patches have
-changed.
+[![Nightly](https://github.com/xNoVoSx/orca-kobra/actions/workflows/nightly.yml/badge.svg)](https://github.com/xNoVoSx/orca-kobra/actions/workflows/nightly.yml)
+[![CI](https://github.com/xNoVoSx/orca-kobra/actions/workflows/ci.yml/badge.svg)](https://github.com/xNoVoSx/orca-kobra/actions/workflows/ci.yml)
+[![Latest build](https://img.shields.io/github/v/release/xNoVoSx/orca-kobra?sort=date&display_name=release&label=latest)](https://github.com/xNoVoSx/orca-kobra/releases/latest)
+[![License: AGPL-3.0](https://img.shields.io/badge/license-AGPL--3.0-blue.svg)](LICENSE)
+[![Spoolman integration](https://img.shields.io/badge/Spoolman-kobra--spoolman-2ea44f)](https://github.com/xNoVoSx/kobra-spoolman)
 
-[Deutsch](README.de.md) · [Changelog](CHANGELOG.md) · [kobra-spoolman](https://github.com/xNoVoSx/kobra-spoolman)
+[Deutsch](README.de.md) · [Installation](docs/installation.md) · [Patches](docs/patches.md) · [Build](docs/build.md) · [Changelog](CHANGELOG.md)
+
+</div>
+
+---
+
+[OrcaSlicer](https://github.com/OrcaSlicer/OrcaSlicer) can already talk to a Kobra S1 running
+[Rinkhals](https://github.com/rinkhals-community/Rinkhals) through its Moonraker agent. A few pieces
+that [kobra-spoolman](https://github.com/xNoVoSx/kobra-spoolman) relies on are not upstream yet.
+This repository adds them as small patches on top of Orca's `main` branch and builds a Linux
+AppImage from it every night:
+
+- The filament **sync button** picks the exact Spoolman profile for each ACE slot instead of a
+  generic one for the material type.
+- **Plugins** can read and write in Orca's data folder on Linux (sandbox fix).
+- Plugins can read the **slice statistics** per filament — the kobra-spoolman plugin uses them to
+  show what each spool needs for the plate.
+
+A launcher installs it next to a regular Orca, keeps it up to date in the background and falls
+back to the previous version if needed. Profiles, printers and plugins are shared with any other
+Orca installation.
+
+## How it works
+
+```mermaid
+flowchart LR
+    UP[OrcaSlicer<br/>main branch]
+    subgraph GH["GitHub Actions (nightly)"]
+        CK{New Orca commit<br/>or changed patches?}
+        AP[apply patches<br/>0001 · 0002 · 0003]
+        BU[build AppImage<br/>dependency cache + ccache]
+    end
+    RE[(Release<br/>AppImage + sha256)]
+    subgraph PC["Your PC"]
+        LA[launcher<br/>orca-kobra]
+        OR["OrcaSlicer (Kobra)"]
+    end
+
+    UP --> CK
+    CK -- yes --> AP --> BU --> RE
+    CK -. no .-> SK[no build]
+    RE -- "background download,<br/>checksum verified" --> LA
+    LA -- "starts the installed version;<br/>new one on next start" --> OR
+```
+
+| Part | What it does |
+|---|---|
+| **[patches/](patches/)** | Three small patches on OrcaSlicer `main`, each one with a clear condition for when it can be dropped. Details: [docs/patches.md](docs/patches.md). |
+| **[nightly.yml](.github/workflows/nightly.yml)** | Builds only when Orca or the patches changed, skips patches that Orca already contains, publishes an AppImage with checksum. Details: [docs/build.md](docs/build.md). |
+| **[tools/orca-kobra](tools/orca-kobra)** | Launcher: starts Orca immediately, downloads updates in the background, keeps the previous version as a fallback. |
+| **[tools/install.sh](tools/install.sh)** | Installs the launcher, the menu entry "OrcaSlicer (Kobra)" and its own icon for the current user. |
 
 ## Patches
 
-| File | Effect | Obsolete once … |
+| Patch | Effect | Obsolete once … |
 |---|---|---|
-| `0001-moonraker-lane-data-filament-id.patch` | During filament sync, Orca's built-in Moonraker agent picks the preset by `filament_id` / `setting_id` from Moonraker's `lane_data` instead of by material type only. This puts the Spoolman profiles (`SM000010`, …) into the right slot automatically. Taken from Orca PR [#14423](https://github.com/OrcaSlicer/OrcaSlicer/pull/14423) (author: Broncosis). | #14423 is merged into Orca |
-| `0002-plugin-audit-linux-config-dir.patch` | Plugin sandbox: on Linux, Orca's data folder is `~/.config/OrcaSlicer`. The `.config` part matched the denied keyword "conf", so plugins could not read or write anything in the whole data folder. Now only the part of the path below the allowed folder is checked; paths outside it and sensitive folders inside it (`cert`, `secret`, `conf`) stay blocked. With unit test. | Orca fixes the bug |
-| `0003-plugin-host-slice-statistics.patch` | New plugin function `orca.host.slice_statistics()`: material usage of the last slice per filament (model, support, tower, flush, total in mm³, plus diameter, density and how often the filament is loaded) — the same numbers as Orca's preview legend. Read-only. The Kobra Spoolman plugin uses it to show the usage per slot after slicing and to warn when a spool is too short. | Orca's plugin API offers slice statistics itself |
+| `0001` moonraker-lane-data-filament-id | Sync button picks the preset by `filament_id` from Moonraker's `lane_data` (from Orca PR [#14423](https://github.com/OrcaSlicer/OrcaSlicer/pull/14423) by Broncosis) | #14423 is merged |
+| `0002` plugin-audit-linux-config-dir | Plugin sandbox no longer blocks the whole `~/.config/OrcaSlicer` because of `.config` | Orca fixes the bug |
+| `0003` plugin-host-slice-statistics | New read-only plugin API `orca.host.slice_statistics()`: usage per filament as in the preview legend, plus loads per filament | Orca's plugin API offers it itself |
 
-If a patch has meanwhile been merged into Orca, the build skips it automatically (the release
-notes then say "skipped (already in Orca)") and it can be deleted here.
+Patches that Orca already contains are skipped automatically and listed as such in the release notes.
 
-## Install and update
+## Requirements
 
-Easiest with the launcher from `tools/`:
+- **Linux x86_64** with a desktop (the AppImage is built on Ubuntu 24.04; recent distributions work).
+- `curl`, `python3`, `sha256sum` and `flock` for the launcher — present on almost every system.
+- Optional: `rsvg-convert` or ImageMagick (`magick`) so the icon is also installed as PNG.
+- For the full workflow with Spoolman: [kobra-spoolman](https://github.com/xNoVoSx/kobra-spoolman)
+  (bridge and Orca plugin). Patch 0001 also helps without it, as long as something fills
+  `lane_data.filament_id` in Moonraker.
+
+> [!NOTE]
+> The launcher's messages and the menu entry are in German. The patches and OrcaSlicer itself are
+> not affected — Orca uses your language setting as usual.
+
+## Quick start
 
 ```bash
+git clone https://github.com/xNoVoSx/orca-kobra && cd orca-kobra
 tools/install.sh
 ```
 
-Afterwards the application menu has **"OrcaSlicer (Kobra)"** — with its own icon (Orca logo
-with an orange spool badge, `tools/orca-kobra.svg`) so you can tell it apart from a regular Orca.
-The launcher
+Then start **"OrcaSlicer (Kobra)"** from the application menu. In Orca set
+**Printer settings → Basic information → Advanced** (advanced mode) **Printer agent = Moonraker**
+so the sync button uses patch 0001.
 
-- downloads the latest version to `~/Applications` on first run,
-- otherwise starts the installed version right away and downloads a newer one in the background
-  (checksum verified); it becomes active on the next start,
-- keeps the previous version as a fallback and deletes older ones,
-- simply starts the existing version when offline.
+Full guide: **[docs/installation.md](docs/installation.md)**.
 
-More commands: `orca-kobra --status`, `orca-kobra --update` (also via right-click in the menu),
-log at `~/.local/state/orca-kobra.log`. Uninstall: `tools/install.sh --remove`.
-The launcher's messages are in German.
+## Documentation
 
-Manual install works too: download the latest `OrcaSlicer-Kobra_…_x86_64.AppImage` from
-**Releases**, `chmod +x` it and run it.
+| | |
+|---|---|
+| [Installation](docs/installation.md) | Launcher, updates and fallback, manual install, uninstall |
+| [Patches](docs/patches.md) | What each patch changes and why, plugin API reference, editing and checking patches |
+| [Build](docs/build.md) | Nightly workflow, when it builds, caches, releases, building in a fork |
+| [Troubleshooting](docs/troubleshooting.md) | Common problems and how to solve them |
+| [Changelog](CHANGELOG.md) | History of patches, build and launcher |
+| [Contributing](CONTRIBUTING.md) | How to propose or update a patch |
 
-The AppImage uses the same data folder as any other Orca (`~/.config/OrcaSlicer`):
-profiles, printers, plugins and settings are kept.
+## Credits
 
-## What happens when a patch no longer applies?
-
-Only the next nightly build fails and GitHub sends an email. The last published AppImage stays
-in Releases and keeps working. The patch then has to be adapted to the new Orca source.
-
-## Start a build manually
-
-**Actions → Orca Kobra Nightly → Run workflow** (tick "force" to build even without changes).
-The first run builds Orca's dependencies and takes accordingly long (several hours);
-afterwards they come from the cache.
-
-## Layout
-
-```
-patches/                    patches (git format-patch), applied in name order
-scripts/apply-patches.sh    applies them, skips those already in Orca
-tools/orca-kobra            launcher with automatic update
-tools/install.sh            installs launcher, menu entry and icon
-.github/workflows/nightly.yml
-CHANGELOG.md                changes to patches, build and launcher
-README.md / README.de.md    this description, English / German
-```
-
-The build steps match Orca's own Linux build (`build_linux.sh -ur`, `-drlL`, `-isrlL` on
-Ubuntu 24.04 with Clang and lld).
+[OrcaSlicer](https://github.com/OrcaSlicer/OrcaSlicer) ·
+Orca PR [#14423](https://github.com/OrcaSlicer/OrcaSlicer/pull/14423) by Broncosis ·
+[Rinkhals](https://github.com/rinkhals-community/Rinkhals) ·
+[Spoolman](https://github.com/Donkie/Spoolman)
 
 ## License
 
-OrcaSlicer is licensed under AGPL-3.0; so are the patches here. The source of every build is
-the Orca commit named in the release notes plus the patches in this repository.
+[AGPL-3.0](LICENSE), like OrcaSlicer itself. The source of every build is the Orca commit named in
+its release notes plus the patches in this repository.
+Not affiliated with Anycubic or OrcaSlicer.

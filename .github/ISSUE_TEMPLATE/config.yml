@@ -1,0 +1,8 @@
+blank_issues_enabled: true
+contact_links:
+  - name: Bridge, Orca plugin, Spoolman setup
+    url: https://github.com/xNoVoSx/kobra-spoolman
+    about: Problems with ace-lane-bridge, the Kobra Spoolman plugin or spoolman_setup.py belong to kobra-spoolman.
+  - name: OrcaSlicer itself
+    url: https://github.com/OrcaSlicer/OrcaSlicer/issues
+    about: If it also happens with an official OrcaSlicer nightly, please report it upstream.

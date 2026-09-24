@@ -7,11 +7,26 @@ repository, by date. Format based on [Keep a Changelog](https://keepachangelog.c
 
 ## [Unreleased]
 
+### Added
+- Documentation structured like kobra-spoolman: `docs/installation.md` and
+  `docs/troubleshooting.md` (with German versions in `docs/de/`), `docs/patches.md` (each patch in
+  detail, API reference for `slice_statistics()`, editing and retiring patches) and `docs/build.md`
+  (when the nightly builds, jobs, releases, building in a fork).
+- `LICENSE` with the full AGPL-3.0 text (the README already named the license).
+- `CONTRIBUTING.md`, issue templates (bug report, feature request, links to kobra-spoolman and
+  OrcaSlicer) and a pull request template.
+- CI workflow `ci.yml`: `shellcheck` for scripts and launcher, `actionlint` for the workflows.
+- `.editorconfig`; `.gitattributes` normalises line endings and keeps patch files byte for byte.
+
 ### Changed
 - Documentation in English first: `README.md` is English, the German version moved to
   `README.de.md` (both are kept up to date). This changelog is English.
+- README rewritten in the layout of kobra-spoolman: badges, overview diagram, patch table,
+  requirements, quick start, documentation index.
 - Release notes and the patch report of the nightly build are in English
   ("applied", "skipped (already in Orca)").
+- Nightly: finding the built AppImage no longer parses `ls` and fails with a clear error if there
+  is none.
 
 ## 2026-09-25
 
