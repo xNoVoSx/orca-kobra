@@ -1,0 +1,129 @@
+#!/usr/bin/env bash
+# orca-kobra - startet OrcaSlicer (Kobra-Build) und haelt ihn aktuell.
+#
+#   orca-kobra [dateien ...]      Orca starten (Dateien werden an Orca weitergegeben)
+#   orca-kobra --update           nur nach Updates suchen und laden, nicht starten
+#   orca-kobra --status           installierte und neueste Version anzeigen
+#
+# Ablauf beim Start:
+#   - Ist noch keine Version installiert, wird die neueste geladen und dann gestartet.
+#   - Sonst startet sofort die installierte Version. Gibt es eine neuere, wird sie im
+#     Hintergrund geladen, geprueft (sha256) und beim naechsten Start verwendet.
+#   - Ohne Internet oder bei GitHub-Problemen startet einfach die installierte Version.
+#
+# Einstellungen (Umgebungsvariablen, z.B. in ~/.config/orca-kobra.conf):
+#   ORCA_KOBRA_REPO   GitHub-Repo mit den Releases   (Standard: xNoVoSx/orca-kobra)
+#   ORCA_KOBRA_DIR    Ablage der AppImages            (Standard: ~/Applications)
+#   ORCA_KOBRA_KEEP   so viele Versionen behalten     (Standard: 2, die alte als Rueckfall)
+set -uo pipefail
+
+CONF="${XDG_CONFIG_HOME:-$HOME/.config}/orca-kobra.conf"
+# shellcheck disable=SC1090
+[ -f "$CONF" ] && . "$CONF"
+REPO="${ORCA_KOBRA_REPO:-xNoVoSx/orca-kobra}"
+DIR="${ORCA_KOBRA_DIR:-$HOME/Applications}"
+KEEP="${ORCA_KOBRA_KEEP:-2}"
+LINK="$DIR/OrcaSlicer-Kobra.AppImage"
+LOCK="$DIR/.orca-kobra-update.lock"
+LOG="${XDG_STATE_HOME:-$HOME/.local/state}/orca-kobra.log"
+mkdir -p "$DIR" "$(dirname "$LOG")"
+
+say() { printf '%s %s\n' "$(date '+%F %T')" "$*" >> "$LOG"; [ -t 1 ] && echo "$*"; }
+notify() { command -v notify-send >/dev/null 2>&1 && notify-send -a "Orca Kobra" -i "${ICON:-orca-kobra}" "Orca Kobra" "$1" || true; }
+
+# Neuestes Release: gibt "name<TAB>appimage-url<TAB>sha256-url" aus (leer bei Fehler)
+latest() {
+    curl -fsSL --max-time 8 -H "Accept: application/vnd.github+json" \
+        "${ORCA_KOBRA_API:-https://api.github.com}/repos/$REPO/releases/latest" 2>/dev/null |
+    python3 -c '
+import json, sys
+try:
+    d = json.load(sys.stdin)
+except Exception:
+    sys.exit(0)
+app = sha = None
+for a in d.get("assets", []):
+    n = a.get("name", "")
+    if n.endswith(".AppImage"):
+        app = (n, a["browser_download_url"])
+    elif n.endswith(".AppImage.sha256"):
+        sha = a["browser_download_url"]
+if app and sha:
+    print(app[0], app[1], sha, sep="\t")
+'
+}
+
+installed() {   # Dateiname der aktuell verlinkten Version
+    [ -L "$LINK" ] && basename "$(readlink "$LINK")"
+}
+
+download() {    # $1 name, $2 url, $3 sha-url  -> 0 bei Erfolg
+    local name="$1" url="$2" shaurl="$3" tmp="$DIR/.$1.part"
+    say "lade $name"
+    local progress=(-sS)
+    [ -t 2 ] && progress=(--progress-bar)      # im Terminal mit Fortschrittsbalken, sonst still
+    if ! curl -fL "${progress[@]}" --retry 3 --max-time 1800 -o "$tmp" "$url"; then
+        say "Download fehlgeschlagen"; rm -f "$tmp"; return 1
+    fi
+    local want have
+    want=$(curl -fsSL --max-time 20 "$shaurl" 2>/dev/null | awk '{print $1}')
+    have=$(sha256sum "$tmp" | awk '{print $1}')
+    if [ -z "$want" ] || [ "$want" != "$have" ]; then
+        say "Pruefsumme passt nicht (erwartet ${want:-?}, erhalten $have) - verworfen"; rm -f "$tmp"; return 1
+    fi
+    chmod +x "$tmp"
+    mv -f "$tmp" "$DIR/$name"
+    ln -sfn "$name" "$LINK"
+    say "installiert: $name"
+    cleanup
+    return 0
+}
+
+cleanup() {     # nur die neuesten $KEEP Versionen behalten (nach Aenderungszeit, ohne ls-Alias)
+    find "$DIR" -maxdepth 1 -type f -name 'OrcaSlicer-Kobra_*.AppImage' -printf '%T@\t%p\n' |
+        sort -rn | tail -n +"$((KEEP + 1))" | cut -f2- |
+        while IFS= read -r old; do
+            [ "$(basename "$old")" = "$(installed)" ] && continue
+            say "entferne alte Version $(basename "$old")"; rm -f "$old"
+        done
+}
+
+update() {      # $1 = "fg" (warten) oder "bg" (Hintergrund)
+    local info name url shaurl
+    info=$(latest) || true
+    if [ -z "$info" ]; then say "GitHub nicht erreichbar oder kein Release - kein Update"; return 1; fi
+    IFS=$'\t' read -r name url shaurl <<< "$info"
+    if [ "$name" = "$(installed)" ] && [ -x "$DIR/$name" ]; then say "aktuell: $name"; return 0; fi
+    # nur ein Download gleichzeitig (flock aus util-linux)
+    exec 9>"$LOCK"
+    if ! flock -n 9; then say "Update laeuft bereits"; return 0; fi
+    if [ "$1" = "bg" ]; then
+        notify "Neue Version wird im Hintergrund geladen: ${name#OrcaSlicer-Kobra_}"
+    fi
+    if download "$name" "$url" "$shaurl"; then
+        [ "$1" = "bg" ] && notify "Update installiert - beim nächsten Start aktiv."
+        return 0
+    fi
+    [ "$1" = "bg" ] && notify "Update fehlgeschlagen - Details in $LOG"
+    return 1
+}
+
+case "${1:-}" in
+    --update) update fg; exit $? ;;
+    --status)
+        echo "installiert: $(installed || echo '-')"
+        info=$(latest); echo "neueste:     ${info%%$'\t'*}"; echo "Ablage:      $DIR"; echo "Log:         $LOG"
+        exit 0 ;;
+esac
+
+if [ ! -x "$LINK" ]; then
+    notify "Erster Start: Orca Kobra wird geladen (ca. 250 MB) …"
+    if ! update fg; then
+        notify "Orca Kobra konnte nicht geladen werden - Details in $LOG"
+        exit 1
+    fi
+else
+    ( update bg >/dev/null 2>&1 & )
+fi
+
+exec "$LINK" "$@"

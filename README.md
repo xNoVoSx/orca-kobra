@@ -20,12 +20,28 @@ Ist ein Patch inzwischen in Orca enthalten, wird er beim Build automatisch über
 
 ## Installieren und aktualisieren
 
-1. Unter **Releases** das neueste `OrcaSlicer-Kobra_…_x86_64.AppImage` herunterladen.
-2. `chmod +x OrcaSlicer-Kobra_*.AppImage` und starten.
+Am bequemsten mit dem Starter aus `tools/`:
+
+```bash
+tools/install.sh
+```
+
+Danach steht im Anwendungsmenü **„OrcaSlicer (Kobra)“**. Der Starter
+
+- lädt beim ersten Mal die neueste Version nach `~/Applications`,
+- startet sonst sofort die installierte Version und lädt eine neuere im Hintergrund
+  (Prüfsumme wird kontrolliert); sie ist ab dem nächsten Start aktiv,
+- behält die vorherige Version als Rückfall und löscht ältere,
+- startet ohne Internet einfach die vorhandene Version.
+
+Weitere Befehle: `orca-kobra --status`, `orca-kobra --update` (auch per Rechtsklick im Menü),
+Protokoll unter `~/.local/state/orca-kobra.log`. Entfernen: `tools/install.sh --remove`.
+
+Von Hand geht es auch: unter **Releases** das neueste `OrcaSlicer-Kobra_…_x86_64.AppImage`
+laden, `chmod +x` und starten.
 
 Das AppImage nutzt denselben Datenordner wie jedes andere Orca (`~/.config/OrcaSlicer`):
-Profile, Drucker und Einstellungen bleiben erhalten. Zum Aktualisieren einfach das neue
-AppImage herunterladen und das alte löschen.
+Profile, Drucker, Plugins und Einstellungen bleiben erhalten.
 
 ## Was passiert, wenn ein Patch nicht mehr passt?
 
@@ -44,6 +60,8 @@ danach kommen sie aus dem Cache.
 ```
 patches/                    Patches (git format-patch), werden in Namensreihenfolge angewendet
 scripts/apply-patches.sh    wendet sie an, überspringt bereits enthaltene
+tools/orca-kobra            Starter mit automatischem Update
+tools/install.sh            installiert Starter, Menüeintrag und Icon
 .github/workflows/nightly.yml
 ```
 

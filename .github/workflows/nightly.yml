@@ -39,7 +39,7 @@ jobs:
       marker: ${{ steps.info.outputs.marker }}
       tag: ${{ steps.info.outputs.tag }}
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
 
       - name: Orca-Stand und Patch-Stand ermitteln
         id: info
@@ -78,7 +78,7 @@ jobs:
       key: ${{ steps.key.outputs.key }}
     steps:
       - name: Orca-Quellcode
-        uses: actions/checkout@v4
+        uses: actions/checkout@v7
         with:
           repository: ${{ env.UPSTREAM }}
           ref: ${{ needs.check.outputs.upstream_sha }}
@@ -91,7 +91,7 @@ jobs:
 
       - name: Cache pruefen
         id: restore
-        uses: actions/cache/restore@v4
+        uses: actions/cache/restore@v6
         with:
           path: orca/deps/build/OrcaSlicer_dep
           key: ${{ steps.key.outputs.key }}
@@ -122,7 +122,7 @@ jobs:
 
       - name: Cache sichern
         if: steps.restore.outputs.cache-hit != 'true'
-        uses: actions/cache/save@v4
+        uses: actions/cache/save@v6
         with:
           path: orca/deps/build/OrcaSlicer_dep
           key: ${{ steps.key.outputs.key }}
@@ -135,12 +135,12 @@ jobs:
     timeout-minutes: 350
     steps:
       - name: Eigenes Repo (Patches)
-        uses: actions/checkout@v4
+        uses: actions/checkout@v7
         with:
           path: kobra
 
       - name: Orca-Quellcode
-        uses: actions/checkout@v4
+        uses: actions/checkout@v7
         with:
           repository: ${{ env.UPSTREAM }}
           ref: ${{ needs.check.outputs.upstream_sha }}
@@ -170,7 +170,7 @@ jobs:
           sudo chown -R "$USER" ./
 
       - name: Abhaengigkeiten aus dem Cache
-        uses: actions/cache/restore@v4
+        uses: actions/cache/restore@v6
         with:
           path: orca/deps/build/OrcaSlicer_dep
           key: ${{ needs.deps.outputs.key }}
