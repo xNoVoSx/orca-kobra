@@ -1,0 +1,90 @@
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
+From: orca-kobra <orca-kobra@users.noreply.github.com>
+Date: Thu, 24 Sep 2026 16:02:41 +0200
+Subject: [PATCH] plugin audit: do not match denied keywords against the
+ allowed root itself
+
+On Linux data_dir() defaults to ~/.config/OrcaSlicer. Its '.config'
+component matched the 'conf' keyword, so every plugin file access inside
+data_dir() (profiles, plugin storage) was denied although data_dir() is a
+global allowed root. Only the path components below the allowed root are
+matched now; paths outside every allowed root and sensitive folders inside
+a root (e.g. resources_dir()/cert) are still denied.
+---
+ src/slic3r/plugin/PluginAuditManager.cpp | 26 ++++++++++++++++++++++++
+ tests/slic3rutils/test_plugin_audit.cpp  | 14 +++++++++++++
+ 2 files changed, 40 insertions(+)
+
+diff --git a/src/slic3r/plugin/PluginAuditManager.cpp b/src/slic3r/plugin/PluginAuditManager.cpp
+index 4d69a4f76..6e00a9161 100644
+--- a/src/slic3r/plugin/PluginAuditManager.cpp
++++ b/src/slic3r/plugin/PluginAuditManager.cpp
+@@ -9,6 +9,7 @@
+ 
+ #include <algorithm>
+ #include <cctype>
++#include <iterator>
+ #include <cstdlib>
+ #include <future>
+ #include <slic3r/GUI/BindDialog.hpp>
+@@ -354,7 +355,32 @@ bool PluginAuditManager::is_denied_path_keyword(const boost::filesystem::path& c
+     if (m_denied_path_keywords.empty())
+         return false;
+ 
++    // Only the components BELOW the allowed root the path lives in are matched. The root
++    // itself is chosen by the application, not by the plugin: on Linux data_dir() defaults to
++    // ~/.config/OrcaSlicer, and its ".config" component would otherwise match "conf" and deny
++    // the entire data_dir() tree (profiles, plugin storage, ...). Paths outside every allowed
++    // root are still matched on all components, and a sensitive folder inside a root (e.g.
++    // resources_dir()/cert) is still denied because it lies below the root.
++    std::size_t skip = 0;
++    const auto consider_root = [&](const fs::path& root) {
++        if (root.empty() || !is_inside_allowed_root(canon, root))
++            return;
++        boost::system::error_code root_ec;
++        fs::path canon_root = fs::weakly_canonical(root, root_ec);
++        if (root_ec)
++            canon_root = fs::absolute(root, root_ec).lexically_normal();
++        const auto depth = static_cast<std::size_t>(std::distance(canon_root.begin(), canon_root.end()));
++        skip = std::max(skip, depth);
++    };
++    for (const auto& root : m_global_allowed_roots)
++        consider_root(root.path);
++    for (const auto& root : m_scoped_allowed_roots)
++        consider_root(root.path);
++
++    std::size_t index = 0;
+     for (const auto& component : canon) {
++        if (index++ < skip)
++            continue;
+         std::string name = component.string();
+         if (name.empty())
+             continue;
+diff --git a/tests/slic3rutils/test_plugin_audit.cpp b/tests/slic3rutils/test_plugin_audit.cpp
+index 71ce69267..4a2bbe504 100644
+--- a/tests/slic3rutils/test_plugin_audit.cpp
++++ b/tests/slic3rutils/test_plugin_audit.cpp
+@@ -237,6 +237,20 @@ TEST_CASE("Plugin audit denies secret/certificate/config-like paths by keyword",
+         CHECK(mgr.is_denied_path_keyword(fs::path("/data/secrets/nested/deep/file.txt")));
+     }
+ 
++    SECTION("the allowed root itself is not matched, only what lies below it")
++    {
++        // Linux default data_dir() is ~/.config/OrcaSlicer: ".config" must not deny the root.
++        const fs::path root = fs::temp_directory_path() / "orca_audit_test" / ".config" / "OrcaSlicer";
++        PluginAuditManager::instance().add_global_allowed_root(root);
++        CHECK_FALSE(mgr.is_denied_path_keyword(root / "user" / "default" / "filament" / "base" / "p.json"));
++        CHECK_FALSE(mgr.is_denied_path_keyword(root / "orca_plugins" / "plugin_data" / "x" / "state.json"));
++        // A sensitive component below the root is still denied.
++        CHECK(mgr.is_denied_path_keyword(root / "conf" / "settings.json"));
++        CHECK(mgr.is_denied_path_keyword(root / "secrets" / "token.txt"));
++        // The same keyword outside every allowed root is still denied.
++        CHECK(mgr.is_denied_path_keyword(fs::temp_directory_path() / "orca_audit_other" / ".config" / "x.json"));
++    }
++
+     SECTION("an unrelated path is not denied")
+     {
+         CHECK_FALSE(mgr.is_denied_path_keyword(fs::path("/plugin/output/model.gcode")));
+-- 
+2.43.0
+

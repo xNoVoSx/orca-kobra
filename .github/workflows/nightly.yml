@@ -1,0 +1,239 @@
+# Baut jede Nacht OrcaSlicer (main) mit den Patches aus patches/ als Linux-AppImage
+# und veroeffentlicht es unter "Releases". Gebaut wird nur, wenn sich Orca oder die
+# Patches seit dem letzten Release geaendert haben (oder "force" gesetzt ist).
+#
+# Die Build-Schritte folgen Orcas eigenem Linux-Build (.github/workflows/build_orca.yml,
+# build_deps.yml): build_linux.sh -ur / -drlL / -isrlL auf ubuntu-24.04 mit Clang + lld.
+
+name: Orca Kobra Nightly
+
+on:
+  schedule:
+    - cron: "30 1 * * *"   # 03:30 deutscher Sommerzeit / 02:30 Winterzeit
+  workflow_dispatch:
+    inputs:
+      force:
+        description: "Auch bauen, wenn sich weder Orca noch die Patches geaendert haben"
+        type: boolean
+        default: false
+
+permissions:
+  contents: write
+
+concurrency:
+  group: orca-kobra-nightly
+  cancel-in-progress: false
+
+env:
+  UPSTREAM: OrcaSlicer/OrcaSlicer
+  UPSTREAM_BRANCH: main
+  KEEP_RELEASES: "5"
+
+jobs:
+  check:
+    name: Gibt es etwas Neues?
+    runs-on: ubuntu-latest
+    outputs:
+      build: ${{ steps.info.outputs.build }}
+      upstream_sha: ${{ steps.info.outputs.upstream_sha }}
+      marker: ${{ steps.info.outputs.marker }}
+      tag: ${{ steps.info.outputs.tag }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Orca-Stand und Patch-Stand ermitteln
+        id: info
+        env:
+          GH_TOKEN: ${{ github.token }}
+          FORCE: ${{ inputs.force }}
+        run: |
+          set -euo pipefail
+          sha=$(git ls-remote "https://github.com/${UPSTREAM}" "refs/heads/${UPSTREAM_BRANCH}" | cut -f1)
+          [ -n "$sha" ] || { echo "::error::Orca-Stand nicht ermittelbar"; exit 1; }
+          phash=$(cat patches/*.patch scripts/*.sh .github/workflows/nightly.yml | sha256sum | cut -c1-10)
+          marker="build-id: orca-${sha:0:12}-patches-${phash}"
+          build=true
+          bodies=""
+          for t in $(gh release list --repo "$GITHUB_REPOSITORY" --limit 30 --json tagName -q '.[].tagName'); do
+            bodies+=$(gh release view "$t" --repo "$GITHUB_REPOSITORY" --json body -q .body)$'\n'
+          done
+          if [ "${FORCE:-false}" != "true" ] && grep -qF "$marker" <<< "$bodies"; then
+            build=false
+            echo "Nichts Neues seit dem letzten Release ($marker) - kein Build." >> "$GITHUB_STEP_SUMMARY"
+          fi
+          {
+            echo "build=$build"
+            echo "upstream_sha=$sha"
+            echo "marker=$marker"
+            echo "tag=kobra-$(date -u +%Y%m%d-%H%M)-${sha:0:7}"
+          } >> "$GITHUB_OUTPUT"
+
+  deps:
+    name: Abhaengigkeiten (Cache)
+    needs: check
+    if: needs.check.outputs.build == 'true'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 350
+    outputs:
+      key: ${{ steps.key.outputs.key }}
+    steps:
+      - name: Orca-Quellcode
+        uses: actions/checkout@v4
+        with:
+          repository: ${{ env.UPSTREAM }}
+          ref: ${{ needs.check.outputs.upstream_sha }}
+          path: orca
+          lfs: false
+
+      - name: Cache-Schluessel
+        id: key
+        run: echo "key=linux-clang-deps-${{ hashFiles('orca/deps/**') }}" >> "$GITHUB_OUTPUT"
+
+      - name: Cache pruefen
+        id: restore
+        uses: actions/cache/restore@v4
+        with:
+          path: orca/deps/build/OrcaSlicer_dep
+          key: ${{ steps.key.outputs.key }}
+          lookup-only: true
+
+      - name: Platz schaffen
+        if: steps.restore.outputs.cache-hit != 'true'
+        run: sudo rm -rf /usr/share/dotnet /usr/local/lib/android /opt/ghc /opt/hostedtoolcache/CodeQL || true
+
+      - name: CMake
+        if: steps.restore.outputs.cache-hit != 'true'
+        uses: lukka/get-cmake@latest
+        with:
+          cmakeVersion: "~4.3.0"
+
+      - name: Systempakete (build_linux.sh -ur)
+        if: steps.restore.outputs.cache-hit != 'true'
+        working-directory: orca
+        run: |
+          mkdir -p deps/build/destdir
+          sudo ./build_linux.sh -ur
+          sudo chown -R "$USER" ./
+
+      - name: Abhaengigkeiten bauen (build_linux.sh -drlL, dauert beim ersten Mal lange)
+        if: steps.restore.outputs.cache-hit != 'true'
+        working-directory: orca
+        run: ./build_linux.sh -drlL
+
+      - name: Cache sichern
+        if: steps.restore.outputs.cache-hit != 'true'
+        uses: actions/cache/save@v4
+        with:
+          path: orca/deps/build/OrcaSlicer_dep
+          key: ${{ steps.key.outputs.key }}
+
+  build:
+    name: AppImage bauen
+    needs: [check, deps]
+    if: needs.check.outputs.build == 'true'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 350
+    steps:
+      - name: Eigenes Repo (Patches)
+        uses: actions/checkout@v4
+        with:
+          path: kobra
+
+      - name: Orca-Quellcode
+        uses: actions/checkout@v4
+        with:
+          repository: ${{ env.UPSTREAM }}
+          ref: ${{ needs.check.outputs.upstream_sha }}
+          path: orca
+          lfs: false
+
+      - name: Patches anwenden
+        run: |
+          bash kobra/scripts/apply-patches.sh orca kobra/patches patch-report.md
+          cat patch-report.md >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Platz schaffen
+        run: |
+          sudo rm -rf /usr/share/dotnet /usr/local/lib/android /opt/ghc /opt/hostedtoolcache/CodeQL || true
+          df -h /
+
+      - name: CMake
+        uses: lukka/get-cmake@latest
+        with:
+          cmakeVersion: "~4.3.0"
+
+      - name: Systempakete (build_linux.sh -ur)
+        working-directory: orca
+        run: |
+          mkdir -p deps/build/destdir
+          sudo ./build_linux.sh -ur
+          sudo chown -R "$USER" ./
+
+      - name: Abhaengigkeiten aus dem Cache
+        uses: actions/cache/restore@v4
+        with:
+          path: orca/deps/build/OrcaSlicer_dep
+          key: ${{ needs.deps.outputs.key }}
+          fail-on-cache-miss: true
+
+      - name: Compiler-Cache
+        uses: hendrikmuhs/ccache-action@v1.2
+        with:
+          key: orca-kobra-linux
+          max-size: 3G
+
+      - name: OrcaSlicer und AppImage bauen (build_linux.sh -isrlL)
+        working-directory: orca
+        env:
+          CMAKE_C_COMPILER_LAUNCHER: ccache
+          CMAKE_CXX_COMPILER_LAUNCHER: ccache
+          CCACHE_SLOPPINESS: pch_defines,time_macros,include_file_mtime,include_file_ctime
+        run: ./build_linux.sh -isrlL
+
+      - name: AppImage benennen
+        id: name
+        run: |
+          set -euo pipefail
+          ver=$(grep 'set(SoftFever_VERSION' orca/version.inc | cut -d '"' -f2)
+          src=$(ls orca/build/OrcaSlicer_Linux_V*.AppImage | head -1)
+          sha="${{ needs.check.outputs.upstream_sha }}"
+          out="OrcaSlicer-Kobra_${ver}_$(date -u +%Y%m%d)_${sha:0:7}_x86_64.AppImage"
+          mv "$src" "$out"
+          chmod +x "$out"
+          sha256sum "$out" > "$out.sha256"
+          echo "file=$out" >> "$GITHUB_OUTPUT"
+          echo "version=$ver" >> "$GITHUB_OUTPUT"
+
+      - name: Release veroeffentlichen
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          sha="${{ needs.check.outputs.upstream_sha }}"
+          {
+            echo "OrcaSlicer ${{ steps.name.outputs.version }} (main) mit Kobra-Patches."
+            echo
+            echo "Orca-Stand: [\`${sha:0:12}\`](https://github.com/${UPSTREAM}/commit/${sha})"
+            echo
+            echo "### Patches"
+            cat patch-report.md
+            echo
+            echo "<!-- ${{ needs.check.outputs.marker }} -->"
+          } > notes.md
+          gh release create "${{ needs.check.outputs.tag }}" \
+            "${{ steps.name.outputs.file }}" "${{ steps.name.outputs.file }}.sha256" \
+            --repo "$GITHUB_REPOSITORY" \
+            --title "Orca Kobra $(date -u +%Y-%m-%d) (${sha:0:7})" \
+            --notes-file notes.md \
+            --latest
+
+      - name: Alte Releases aufraeumen
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          gh release list --repo "$GITHUB_REPOSITORY" --limit 100 --json tagName,createdAt \
+            -q "sort_by(.createdAt) | reverse | .[${KEEP_RELEASES}:] | .[].tagName" \
+          | while read -r t; do
+              echo "entferne $t"
+              gh release delete "$t" --repo "$GITHUB_REPOSITORY" --yes --cleanup-tag
+            done

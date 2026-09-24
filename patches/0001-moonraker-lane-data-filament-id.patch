@@ -1,0 +1,152 @@
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
+From: Broncosis <broncosis@gmail.com>
+Date: Thu, 25 Jun 2026 19:02:39 -0700
+Subject: [PATCH] Match filament presets by filament_id/setting_id from
+ Moonraker lane_data
+
+When OrcaSlicer reads lane_data from Moonraker, it now checks filament_id
+and setting_id fields first (populated by spoolman-lane-sync, ACE Pro, etc.)
+and attempts to match a filament preset before falling back to the existing
+material-type matching.
+
+- Add PresetCollection::filament_id_by_id_or_name() which tries matching by
+  filament_id, setting_id, preset name (exact then case-insensitive/base-name)
+- Use it in MoonrakerPrinterAgent::fetch_moonraker_filament_data() for both
+  filament_id and setting_id fields from lane_data
+- Add name-based fallback in PresetBundle::sync_ams_list() and
+  get_ams_cobox_infos() for user presets that have no filament_id
+---
+ src/libslic3r/Preset.cpp                   | 46 ++++++++++++++++++++++
+ src/libslic3r/Preset.hpp                   |  3 ++
+ src/libslic3r/PresetBundle.cpp             |  8 ++++
+ src/slic3r/Utils/MoonrakerPrinterAgent.cpp | 17 ++++++--
+ 4 files changed, 71 insertions(+), 3 deletions(-)
+
+diff --git a/src/libslic3r/Preset.cpp b/src/libslic3r/Preset.cpp
+index 214ef229d..186507696 100644
+--- a/src/libslic3r/Preset.cpp
++++ b/src/libslic3r/Preset.cpp
+@@ -3496,6 +3496,52 @@ std::string PresetCollection::filament_id_by_type(const std::string& filament_ty
+     return preset(first_visible_idx_by_type(filament_type)).filament_id;
+ }
+ 
++std::string PresetCollection::filament_id_by_id_or_name(const std::string& id_or_name) const
++{
++    if (id_or_name.empty())
++        return {};
++    size_t start = m_default_suppressed ? m_num_default_presets : 0;
++    // First pass: match by filament_id (e.g. "GFL00")
++    for (size_t i = start; i < m_presets.size(); ++i) {
++        const auto& p = m_presets[i];
++        if (p.is_visible && p.is_compatible && p.filament_id == id_or_name)
++            return p.filament_id;
++    }
++    // Second pass: match by setting_id (e.g. "OGFSA04") — most presets have this even without filament_id
++    for (size_t i = start; i < m_presets.size(); ++i) {
++        const auto& p = m_presets[i];
++        if (p.is_visible && p.is_compatible && p.setting_id == id_or_name)
++            return p.filament_id.empty() ? p.setting_id : p.filament_id;
++    }
++    // Third pass: match by preset name — user presets may have neither filament_id nor setting_id,
++    // so return the name itself as the identifier for downstream name-based lookup.
++    for (size_t i = start; i < m_presets.size(); ++i) {
++        const auto& p = m_presets[i];
++        if (p.is_visible && p.is_compatible && p.name == id_or_name) {
++            if (!p.filament_id.empty()) return p.filament_id;
++            if (!p.setting_id.empty()) return p.setting_id;
++            return p.name;
++        }
++    }
++    // Fourth pass: case-insensitive match against full name or base name before '@'
++    // (e.g. "Esun pla+" matches "eSUN PLA+ @System").
++    std::string id_lower = boost::algorithm::to_lower_copy(id_or_name);
++    for (size_t i = start; i < m_presets.size(); ++i) {
++        const auto& p = m_presets[i];
++        if (!p.is_visible || !p.is_compatible) continue;
++        std::string name_lower = boost::algorithm::to_lower_copy(p.name);
++        // Strip trailing " @..." suffix to get the base name.
++        auto at_pos = name_lower.find(" @");
++        std::string base_lower = (at_pos != std::string::npos) ? name_lower.substr(0, at_pos) : name_lower;
++        if (name_lower == id_lower || base_lower == id_lower) {
++            if (!p.filament_id.empty()) return p.filament_id;
++            if (!p.setting_id.empty()) return p.setting_id;
++            return p.name;
++        }
++    }
++    return {};
++}
++
+ std::vector<std::string> PresetCollection::diameters_of_selected_printer()
+ {
+     std::set<std::string> diameters;
+diff --git a/src/libslic3r/Preset.hpp b/src/libslic3r/Preset.hpp
+index c66518e29..571ce6deb 100644
+--- a/src/libslic3r/Preset.hpp
++++ b/src/libslic3r/Preset.hpp
+@@ -756,6 +756,9 @@ public:
+     size_t first_visible_idx_by_type(const std::string& filament_type) const;
+     // Return the filament_id of the best-matching visible preset for the given filament type.
+     std::string filament_id_by_type(const std::string& filament_type) const;
++    // Return the filament_id of the first visible preset matching by filament_id or preset name.
++    // Returns empty string if no match found.
++    std::string filament_id_by_id_or_name(const std::string& id_or_name) const;
+     // Return index of the first compatible preset. Certainly at least the '- default -' preset shall be compatible.
+     // If one of the prefered_alternates is compatible, select it.
+     template<typename PreferedCondition> size_t first_compatible_idx(PreferedCondition prefered_condition) const
+diff --git a/src/libslic3r/PresetBundle.cpp b/src/libslic3r/PresetBundle.cpp
+index dc731b63c..90fe8c39d 100644
+--- a/src/libslic3r/PresetBundle.cpp
++++ b/src/libslic3r/PresetBundle.cpp
+@@ -3641,6 +3641,10 @@ void PresetBundle::get_ams_cobox_infos(AMSComboInfo& combox_info)
+         auto iter = std::find_if(filaments.begin(), filaments.end(),
+                                  [this, &filament_id](auto &f) { return f.is_compatible && filaments.get_preset_base(f) == &f && f.filament_id == filament_id; });
+         warn_ambiguous_filament_id_match(filaments, iter, filament_id);
++        // Also try matching by preset name for user presets that have no filament_id.
++        if (iter == filaments.end())
++            iter = std::find_if(filaments.begin(), filaments.end(),
++                                [&filament_id](auto &f) { return f.is_compatible && f.name == filament_id; });
+         if (iter == filaments.end()) {
+             BOOST_LOG_TRIVIAL(warning) << __FUNCTION__ << boost::format(": filament_id %1% not found or system or compatible") % filament_id;
+             auto filament_type = ams.opt_string("filament_type", 0u);
+@@ -3744,6 +3748,10 @@ unsigned int PresetBundle::sync_ams_list(std::vector<std::pair<DynamicPrintConfi
+             has_type |= f.config.opt_string("filament_type", 0u) == filament_type;
+             return f.is_compatible && filaments.get_preset_base(f) == &f && f.filament_id == filament_id; });
+         warn_ambiguous_filament_id_match(filaments, iter, filament_id);
++        // Also try matching by preset name for user presets that have no filament_id.
++        if (iter == filaments.end())
++            iter = std::find_if(filaments.begin(), filaments.end(),
++                                [&filament_id](auto &f) { return f.is_compatible && f.name == filament_id; });
+         if (iter == filaments.end()) {
+             BOOST_LOG_TRIVIAL(info) << __FUNCTION__ << boost::format(": filament_id %1% not found or system or compatible") % filament_id;
+             if (!filament_type.empty()) {
+diff --git a/src/slic3r/Utils/MoonrakerPrinterAgent.cpp b/src/slic3r/Utils/MoonrakerPrinterAgent.cpp
+index 384a69d51..6457e1802 100644
+--- a/src/slic3r/Utils/MoonrakerPrinterAgent.cpp
++++ b/src/slic3r/Utils/MoonrakerPrinterAgent.cpp
+@@ -836,9 +836,20 @@ bool MoonrakerPrinterAgent::fetch_moonraker_filament_data(std::vector<AmsTrayDat
+         tray.nozzle_temp = safe_json_int(lane_obj, "nozzle_temp");
+         tray.has_filament = !tray.tray_type.empty();
+         auto* bundle = GUI::wxGetApp().preset_bundle;
+-        tray.tray_info_idx = bundle
+-            ? bundle->filaments.filament_id_by_type(tray.tray_type)
+-            : map_filament_type_to_generic_id(tray.tray_type);
++        // Try to match preset by filament_id, then setting_id from lane_data (spoolman-lane-sync
++        // stores the OrcaSlicer preset name/id in setting_id; filament_id may be a raw Spoolman DB id).
++        // Falls back to material-type matching if no preset found.
++        std::string lane_filament_id = safe_json_string(lane_obj, "filament_id");
++        std::string lane_setting_id  = safe_json_string(lane_obj, "setting_id");
++        tray.tray_info_idx = "";
++        if (!lane_filament_id.empty() && bundle)
++            tray.tray_info_idx = bundle->filaments.filament_id_by_id_or_name(lane_filament_id);
++        if (tray.tray_info_idx.empty() && !lane_setting_id.empty() && bundle)
++            tray.tray_info_idx = bundle->filaments.filament_id_by_id_or_name(lane_setting_id);
++        if (tray.tray_info_idx.empty())
++            tray.tray_info_idx = bundle
++                ? bundle->filaments.filament_id_by_type(tray.tray_type)
++                : map_filament_type_to_generic_id(tray.tray_type);
+ 
+         max_lane_index = std::max(max_lane_index, lane_index);
+         trays.push_back(tray);
+-- 
+2.43.0
+
