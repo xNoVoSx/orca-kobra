@@ -1,4 +1,4 @@
-From 8eec0a69744d6220eb9798e7ec66519975b86b1b Mon Sep 17 00:00:00 2001
+From 577994217185eed524642f352024dc3d905c8af3 Mon Sep 17 00:00:00 2001
 From: orca-kobra <orca-kobra@users.noreply.github.com>
 Date: Thu, 24 Sep 2026 20:59:00 +0200
 Subject: [PATCH 3/3] plugin host: expose per-filament slice statistics
@@ -8,17 +8,19 @@ the per-filament volumes of a plate's last slice (model, support, prime tower,
 flush, total in mm^3) together with filament diameter and density, taken from
 the same GCodeProcessor statistics the preview legend uses, plus how often each
 filament is loaded (first use and every switch back to it, from the processed
-moves).
+moves) and the filament changes in order: "transitions" lists each
+(from, to) pair with its count, from None for the first filament.
 
-Plugins can use it to compare a slice with what is left on the loaded spools.
-The plate's valid flag is only set after SlicingJobComplete has been
-dispatched, so a handler of that event passes require_valid=False.
+Plugins can use it to compare a slice with what is left on the loaded spools,
+and to estimate a filament changer's purge per colour change. The plate's
+valid flag is only set after SlicingJobComplete has been dispatched, so a
+handler of that event passes require_valid=False.
 ---
- src/slic3r/plugin/host/PluginHostApp.cpp | 90 ++++++++++++++++++++++++
- 1 file changed, 90 insertions(+)
+ src/slic3r/plugin/host/PluginHostApp.cpp | 105 +++++++++++++++++++++++
+ 1 file changed, 105 insertions(+)
 
 diff --git a/src/slic3r/plugin/host/PluginHostApp.cpp b/src/slic3r/plugin/host/PluginHostApp.cpp
-index 75acd4cc7..a9abd7baf 100644
+index 75acd4cc7..1f5a255d9 100644
 --- a/src/slic3r/plugin/host/PluginHostApp.cpp
 +++ b/src/slic3r/plugin/host/PluginHostApp.cpp
 @@ -5,8 +5,12 @@
@@ -34,7 +36,7 @@ index 75acd4cc7..a9abd7baf 100644
  #include <stdexcept>
  
  namespace py = pybind11;
-@@ -38,6 +42,86 @@ PresetBundle* current_preset_bundle()
+@@ -38,6 +42,100 @@ PresetBundle* current_preset_bundle()
      return preset_bundle;
  }
  
@@ -72,11 +74,15 @@ index 75acd4cc7..a9abd7baf 100644
 +
 +    const PrintEstimatedStatistics& ps = result->print_statistics;
 +
++    // Loads per filament and the order they happen in: (from, to) -> count,
++    // from -1 for the first filament of the print.
 +    std::map<size_t, unsigned int> loads;
++    std::map<std::pair<int, int>, unsigned int> transitions;
 +    int active = -1;
 +    for (const GCodeProcessorResult::MoveVertex& move : result->moves) {
 +        if (move.type != EMoveType::Extrude || static_cast<int>(move.extruder_id) == active)
 +            continue;
++        ++transitions[{active, static_cast<int>(move.extruder_id)}];
 +        active = move.extruder_id;
 +        ++loads[move.extruder_id];
 +    }
@@ -115,18 +121,29 @@ index 75acd4cc7..a9abd7baf 100644
 +    out["filaments"]                    = std::move(filaments);
 +    out["total_filament_changes"]       = ps.total_filament_changes;
 +    out["total_flush_filament_changes"] = ps.total_flush_filament_changes;
++
++    py::list changes;
++    for (const auto& [pair, count] : transitions) {
++        py::dict c;
++        c["from"]  = pair.first < 0 ? py::object(py::none()) : py::object(py::int_(pair.first));
++        c["to"]    = pair.second;
++        c["count"] = count;
++        changes.append(std::move(c));
++    }
++    out["transitions"] = std::move(changes);
 +    return out;
 +}
 +
  } // namespace
  
  // Access to the live GUI application: the Plater and the module-level
-@@ -65,6 +149,12 @@ void host_bindings::register_app(py::module_& host)
+@@ -65,6 +163,13 @@ void host_bindings::register_app(py::module_& host)
              throw std::runtime_error("OrcaSlicer application is not initialized");
          return GUI::into_u8(GUI::wxGetApp().current_language_code_safe());
      });
 +    // Material usage of the last slice per filament (model, support, prime
-+    // tower, flush, total in mm^3 plus diameter, density and load count), so
++    // tower, flush, total in mm^3 plus diameter, density and load count) and the
++    // filament changes in order ("transitions": from, to, count), so
 +    // plugins can compare it with what is left on the loaded spools. plate_index -1 is the
 +    // current plate. The valid flag is only set after SlicingJobComplete has been
 +    // dispatched, so a handler of that event passes require_valid=False.

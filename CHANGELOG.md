@@ -7,6 +7,11 @@ repository, by date. Format based on [Keep a Changelog](https://keepachangelog.c
 
 ## [Unreleased]
 
+### Changed
+- Patch 0003: `slice_statistics()` also returns `transitions` — every filament change of the plate
+  as `{from, to, count}` (`from` is `None` for the first filament). kobra-spoolman uses it to
+  estimate the ACE's purge per colour change.
+
 ### Added
 - Documentation structured like kobra-spoolman: `docs/installation.md` and
   `docs/troubleshooting.md` (with German versions in `docs/de/`), `docs/patches.md` (each patch in

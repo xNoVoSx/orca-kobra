@@ -68,7 +68,7 @@ flowchart LR
 |---|---|---|
 | `0001` moonraker-lane-data-filament-id | Sync button picks the preset by `filament_id` from Moonraker's `lane_data` (from Orca PR [#14423](https://github.com/OrcaSlicer/OrcaSlicer/pull/14423) by Broncosis) | #14423 is merged |
 | `0002` plugin-audit-linux-config-dir | Plugin sandbox no longer blocks the whole `~/.config/OrcaSlicer` because of `.config` | Orca fixes the bug |
-| `0003` plugin-host-slice-statistics | New read-only plugin API `orca.host.slice_statistics()`: usage per filament as in the preview legend, plus loads per filament | Orca's plugin API offers it itself |
+| `0003` plugin-host-slice-statistics | New read-only plugin API `orca.host.slice_statistics()`: usage per filament as in the preview legend, plus loads and filament changes (from → to) | Orca's plugin API offers it itself |
 
 Patches that Orca already contains are skipped automatically and listed as such in the release notes.
 

@@ -68,7 +68,7 @@ flowchart LR
 |---|---|---|
 | `0001` moonraker-lane-data-filament-id | Sync-Knopf wählt das Profil über `filament_id` aus Moonrakers `lane_data` (aus Orca-PR [#14423](https://github.com/OrcaSlicer/OrcaSlicer/pull/14423) von Broncosis) | #14423 übernommen ist |
 | `0002` plugin-audit-linux-config-dir | Plugin-Sandbox sperrt nicht mehr ganz `~/.config/OrcaSlicer` wegen `.config` | Orca den Fehler behebt |
-| `0003` plugin-host-slice-statistics | Neue, nur lesende Plugin-Funktion `orca.host.slice_statistics()`: Verbrauch pro Filament wie in der Vorschau-Legende, dazu die Ladevorgänge pro Filament | Orcas Plugin-API das selbst anbietet |
+| `0003` plugin-host-slice-statistics | Neue, nur lesende Plugin-Funktion `orca.host.slice_statistics()`: Verbrauch pro Filament wie in der Vorschau-Legende, dazu Ladevorgänge und Filamentwechsel (von → nach) | Orcas Plugin-API das selbst anbietet |
 
 Patches, die Orca schon enthält, werden automatisch übersprungen und in den Release-Notizen so aufgeführt.
 

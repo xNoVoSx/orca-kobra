@@ -57,7 +57,8 @@ legend. The kobra-spoolman plugin needs them to compare a plate with what is lef
 spools.
 
 **Change.** A read-only function on the plugin host, built from the same `GCodeProcessor`
-statistics the preview legend uses, plus a count of how often each filament is loaded.
+statistics the preview legend uses, plus how often each filament is loaded and which filament
+changes happen (from → to, with counts).
 
 **Drop when** Orca's plugin API offers slice statistics itself.
 
@@ -82,6 +83,7 @@ Returns `None` if the plate does not exist, has no slice result, or the result i
 | `filaments` | list | One entry per filament used, see below |
 | `total_filament_changes` | int | Filament changes, as in the preview legend |
 | `total_flush_filament_changes` | int | Changes that flush, as in the preview legend |
+| `transitions` | list | Filament changes in order, grouped: `{"from": int or None, "to": int, "count": int}` with 0-based filament indices; `from` is `None` for the first filament of the print. Builds before 2026-10-01 lack this key. |
 
 Each entry of `filaments`:
 
@@ -120,7 +122,8 @@ class UsageCheck(orca.script.ScriptPluginCapabilityBase):
 ```
 
 Firmware purge on load (for example by the ACE on a Kobra S1) is **not** part of Orca's
-statistics; kobra-spoolman measures it on the printer and adds it per load.
+statistics. kobra-spoolman estimates it per colour change from `transitions`, the slot colours and
+the firmware's flush settings, and measures it on the printer.
 
 ## Editing a patch
 
