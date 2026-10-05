@@ -23,10 +23,10 @@ material-type matching.
  4 files changed, 71 insertions(+), 3 deletions(-)
 
 diff --git a/src/libslic3r/Preset.cpp b/src/libslic3r/Preset.cpp
-index 214ef229d..186507696 100644
+index b47a0f469..648ed4566 100644
 --- a/src/libslic3r/Preset.cpp
 +++ b/src/libslic3r/Preset.cpp
-@@ -3496,6 +3496,52 @@ std::string PresetCollection::filament_id_by_type(const std::string& filament_ty
+@@ -3688,6 +3688,52 @@ std::string PresetCollection::filament_id_by_type(const std::string& filament_ty
      return preset(first_visible_idx_by_type(filament_type)).filament_id;
  }
  
@@ -80,10 +80,10 @@ index 214ef229d..186507696 100644
  {
      std::set<std::string> diameters;
 diff --git a/src/libslic3r/Preset.hpp b/src/libslic3r/Preset.hpp
-index c66518e29..571ce6deb 100644
+index 2b1fb372a..d655e83c2 100644
 --- a/src/libslic3r/Preset.hpp
 +++ b/src/libslic3r/Preset.hpp
-@@ -756,6 +756,9 @@ public:
+@@ -787,6 +787,9 @@ public:
      size_t first_visible_idx_by_type(const std::string& filament_type) const;
      // Return the filament_id of the best-matching visible preset for the given filament type.
      std::string filament_id_by_type(const std::string& filament_type) const;
@@ -94,10 +94,10 @@ index c66518e29..571ce6deb 100644
      // If one of the prefered_alternates is compatible, select it.
      template<typename PreferedCondition> size_t first_compatible_idx(PreferedCondition prefered_condition) const
 diff --git a/src/libslic3r/PresetBundle.cpp b/src/libslic3r/PresetBundle.cpp
-index dc731b63c..90fe8c39d 100644
+index eb8321e4b..03fe7c7db 100644
 --- a/src/libslic3r/PresetBundle.cpp
 +++ b/src/libslic3r/PresetBundle.cpp
-@@ -3641,6 +3641,10 @@ void PresetBundle::get_ams_cobox_infos(AMSComboInfo& combox_info)
+@@ -3826,6 +3826,10 @@ void PresetBundle::get_ams_cobox_infos(AMSComboInfo& combox_info)
          auto iter = std::find_if(filaments.begin(), filaments.end(),
                                   [this, &filament_id](auto &f) { return f.is_compatible && filaments.get_preset_base(f) == &f && f.filament_id == filament_id; });
          warn_ambiguous_filament_id_match(filaments, iter, filament_id);
@@ -108,7 +108,7 @@ index dc731b63c..90fe8c39d 100644
          if (iter == filaments.end()) {
              BOOST_LOG_TRIVIAL(warning) << __FUNCTION__ << boost::format(": filament_id %1% not found or system or compatible") % filament_id;
              auto filament_type = ams.opt_string("filament_type", 0u);
-@@ -3744,6 +3748,10 @@ unsigned int PresetBundle::sync_ams_list(std::vector<std::pair<DynamicPrintConfi
+@@ -3929,6 +3933,10 @@ unsigned int PresetBundle::sync_ams_list(std::vector<std::pair<DynamicPrintConfi
              has_type |= f.config.opt_string("filament_type", 0u) == filament_type;
              return f.is_compatible && filaments.get_preset_base(f) == &f && f.filament_id == filament_id; });
          warn_ambiguous_filament_id_match(filaments, iter, filament_id);
@@ -120,10 +120,10 @@ index dc731b63c..90fe8c39d 100644
              BOOST_LOG_TRIVIAL(info) << __FUNCTION__ << boost::format(": filament_id %1% not found or system or compatible") % filament_id;
              if (!filament_type.empty()) {
 diff --git a/src/slic3r/Utils/MoonrakerPrinterAgent.cpp b/src/slic3r/Utils/MoonrakerPrinterAgent.cpp
-index 384a69d51..6457e1802 100644
+index 96570b656..e058e3ed0 100644
 --- a/src/slic3r/Utils/MoonrakerPrinterAgent.cpp
 +++ b/src/slic3r/Utils/MoonrakerPrinterAgent.cpp
-@@ -836,9 +836,20 @@ bool MoonrakerPrinterAgent::fetch_moonraker_filament_data(std::vector<AmsTrayDat
+@@ -815,9 +815,20 @@ bool MoonrakerPrinterAgent::fetch_moonraker_filament_data(std::vector<AmsTrayDat
          tray.nozzle_temp = safe_json_int(lane_obj, "nozzle_temp");
          tray.has_filament = !tray.tray_type.empty();
          auto* bundle = GUI::wxGetApp().preset_bundle;
@@ -148,5 +148,5 @@ index 384a69d51..6457e1802 100644
          max_lane_index = std::max(max_lane_index, lane_index);
          trays.push_back(tray);
 -- 
-2.43.0
+2.55.0
 

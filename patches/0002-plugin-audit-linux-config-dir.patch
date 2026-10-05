@@ -16,18 +16,18 @@ a root (e.g. resources_dir()/cert) are still denied.
  2 files changed, 40 insertions(+)
 
 diff --git a/src/slic3r/plugin/PluginAuditManager.cpp b/src/slic3r/plugin/PluginAuditManager.cpp
-index 4d69a4f76..6e00a9161 100644
+index 1fe8837c5..f97686ef1 100644
 --- a/src/slic3r/plugin/PluginAuditManager.cpp
 +++ b/src/slic3r/plugin/PluginAuditManager.cpp
-@@ -9,6 +9,7 @@
+@@ -12,6 +12,7 @@
  
  #include <algorithm>
  #include <cctype>
 +#include <iterator>
  #include <cstdlib>
  #include <future>
- #include <slic3r/GUI/BindDialog.hpp>
-@@ -354,7 +355,32 @@ bool PluginAuditManager::is_denied_path_keyword(const boost::filesystem::path& c
+ #include <mutex>
+@@ -366,7 +367,32 @@ bool PluginAuditManager::is_denied_path_keyword(const boost::filesystem::path& c
      if (m_denied_path_keywords.empty())
          return false;
  
@@ -61,10 +61,10 @@ index 4d69a4f76..6e00a9161 100644
          if (name.empty())
              continue;
 diff --git a/tests/slic3rutils/test_plugin_audit.cpp b/tests/slic3rutils/test_plugin_audit.cpp
-index 71ce69267..4a2bbe504 100644
+index ca8c46fab..8a8a1919c 100644
 --- a/tests/slic3rutils/test_plugin_audit.cpp
 +++ b/tests/slic3rutils/test_plugin_audit.cpp
-@@ -237,6 +237,20 @@ TEST_CASE("Plugin audit denies secret/certificate/config-like paths by keyword",
+@@ -241,6 +241,20 @@ TEST_CASE("Plugin audit denies secret/certificate/config-like paths by keyword",
          CHECK(mgr.is_denied_path_keyword(fs::path("/data/secrets/nested/deep/file.txt")));
      }
  
@@ -86,5 +86,5 @@ index 71ce69267..4a2bbe504 100644
      {
          CHECK_FALSE(mgr.is_denied_path_keyword(fs::path("/plugin/output/model.gcode")));
 -- 
-2.43.0
+2.55.0
 

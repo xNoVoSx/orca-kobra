@@ -62,6 +62,20 @@ changes happen (from → to, with counts).
 
 **Drop when** Orca's plugin API offers slice statistics itself.
 
+## 0004: minimum size for docked plugin panels
+
+**Problem.** A plugin panel docked beside the 3D view (`orca.host.ui.create_dock_panel`) has no
+minimum size, and an idle handler stores the panel's current width as its best size in the saved
+window layout. A panel that was squeezed once — for example while the main window was still being
+laid out at start-up — was saved a few pixels wide and restored that way on every start (the
+kobra-spoolman panel showed up about 2 mm wide).
+
+**Change.** `Plater::priv::add_dock_pane` sets a minimum size (the requested size, capped at
+220 × 160 DIP), applies it again after `LoadPaneInfo` (which restores the saved minimum too) and
+falls back to the requested size when the saved layout is smaller than the minimum.
+
+**Drop when** Orca gives docked plugin panes a minimum size itself.
+
 ### API reference
 
 ```python

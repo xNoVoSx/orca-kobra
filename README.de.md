@@ -27,6 +27,7 @@ und baut daraus jede Nacht ein Linux-AppImage:
 - **Plugins** dürfen unter Linux in Orcas Datenordner lesen und schreiben (Sandbox-Fix).
 - Plugins können die **Slice-Statistik** pro Filament lesen – das kobra-spoolman-Plugin zeigt
   damit, wie viel jede Spule für die Platte braucht.
+- Angedockte **Plugin-Panels** können nicht mehr auf wenige Pixel zusammenfallen.
 
 Ein Starter installiert den Build neben einem normalen Orca, hält ihn im Hintergrund aktuell und
 kann auf die vorherige Version zurückfallen. Profile, Drucker und Plugins teilt er mit jeder
@@ -39,7 +40,7 @@ flowchart LR
     UP[OrcaSlicer<br/>main-Zweig]
     subgraph GH["GitHub Actions (nachts)"]
         CK{Neuer Orca-Commit<br/>oder Patches geändert?}
-        AP[Patches anwenden<br/>0001 · 0002 · 0003]
+        AP[Patches anwenden<br/>0001 · 0002 · 0003 · 0004]
         BU[AppImage bauen<br/>Abhängigkeits-Cache + ccache]
     end
     RE[(Release<br/>AppImage + sha256)]
@@ -57,7 +58,7 @@ flowchart LR
 
 | Teil | Was er macht |
 |---|---|
-| **[patches/](patches/)** | Drei kleine Patches auf OrcaSlicer `main`, jeder mit einer klaren Bedingung, wann er wegfallen kann. Details: [docs/patches.md](docs/patches.md) (englisch). |
+| **[patches/](patches/)** | Vier kleine Patches auf OrcaSlicer `main`, jeder mit einer klaren Bedingung, wann er wegfallen kann. Details: [docs/patches.md](docs/patches.md) (englisch). |
 | **[nightly.yml](.github/workflows/nightly.yml)** | Baut nur, wenn sich Orca oder die Patches geändert haben, überspringt Patches, die Orca schon enthält, veröffentlicht ein AppImage mit Prüfsumme. Details: [docs/build.md](docs/build.md) (englisch). |
 | **[tools/orca-kobra](tools/orca-kobra)** | Starter: startet Orca sofort, lädt Updates im Hintergrund, behält die vorherige Version als Rückfall. |
 | **[tools/install.sh](tools/install.sh)** | Installiert Starter, Menüeintrag „OrcaSlicer (Kobra)“ und ein eigenes Icon für den aktuellen Benutzer. |
@@ -69,6 +70,7 @@ flowchart LR
 | `0001` moonraker-lane-data-filament-id | Sync-Knopf wählt das Profil über `filament_id` aus Moonrakers `lane_data` (aus Orca-PR [#14423](https://github.com/OrcaSlicer/OrcaSlicer/pull/14423) von Broncosis) | #14423 übernommen ist |
 | `0002` plugin-audit-linux-config-dir | Plugin-Sandbox sperrt nicht mehr ganz `~/.config/OrcaSlicer` wegen `.config` | Orca den Fehler behebt |
 | `0003` plugin-host-slice-statistics | Neue, nur lesende Plugin-Funktion `orca.host.slice_statistics()`: Verbrauch pro Filament wie in der Vorschau-Legende, dazu Ladevorgänge und Filamentwechsel (von → nach) | Orcas Plugin-API das selbst anbietet |
+| `0004` plugin-dock-pane-min-size | Neben der 3D-Ansicht angedockte Plugin-Panels behalten eine Mindestgröße; ein Layout, das gespeichert wurde, während ein Panel zusammengedrückt war, bringt es nicht mehr wenige Pixel breit zurück | Orca den Fehler behebt |
 
 Patches, die Orca schon enthält, werden automatisch übersprungen und in den Release-Notizen so aufgeführt.
 

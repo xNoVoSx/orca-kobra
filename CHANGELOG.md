@@ -7,6 +7,16 @@ repository, by date. Format based on [Keep a Changelog](https://keepachangelog.c
 
 ## [Unreleased]
 
+### Fixed
+- The nightly build failed since 2026-10-03: Orca removed unused includes in
+  `PluginAuditManager.cpp` and `PluginHostApp.cpp`, so patches 0002 and 0003 no longer applied.
+  Both are rebased onto the current `main` (context only, no change in behaviour); 0001 gets new
+  line numbers.
+
+### Added
+- Patch 0004 `plugin-dock-pane-min-size`: docked plugin panels keep a minimum size, and a window
+  layout saved while a panel was collapsed no longer brings it back a few pixels wide.
+
 ### Changed
 - Patch 0003: `slice_statistics()` also returns `transitions` — every filament change of the plate
   as `{from, to, count}` (`from` is `None` for the first filament). kobra-spoolman uses it to

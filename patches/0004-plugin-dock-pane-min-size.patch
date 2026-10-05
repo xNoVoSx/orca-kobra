@@ -1,0 +1,49 @@
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
+From: orca-kobra <orca-kobra@users.noreply.github.com>
+Date: Tue, 6 Oct 2026 00:09:42 +0200
+Subject: [PATCH] plugin dock panes: keep a minimum size and reset a
+ collapsed saved layout
+
+A docked plugin pane had no minimum size, and the idle handler stores the
+pane's current width as its best size. A pane that was squeezed once (for
+example while the main window was still being laid out) was saved a few
+pixels wide and restored that way on every start. Set a minimum size (the
+requested size, capped at 220x160 DIP), re-apply it after LoadPaneInfo and
+fall back to the requested size when the saved layout is below it.
+---
+ src/slic3r/GUI/Plater.cpp | 11 ++++++++++-
+ 1 file changed, 10 insertions(+), 1 deletion(-)
+
+diff --git a/src/slic3r/GUI/Plater.cpp b/src/slic3r/GUI/Plater.cpp
+index c2b0e6f0a..caa973c33 100644
+--- a/src/slic3r/GUI/Plater.cpp
++++ b/src/slic3r/GUI/Plater.cpp
+@@ -8632,8 +8632,12 @@ void Plater::priv::add_dock_pane(wxWindow* window, const std::string& name, cons
+ 
+     // A restored layout below already holds pixels.
+     const wxSize  pixels = q->FromDIP(size);
++    // A docked pane must never collapse to a few pixels: wxAUI has no minimum unless one is set, and the idle
++    // handler below records whatever width the pane had, so a pane squeezed once (e.g. laid out before the main
++    // window had its final size) came back that thin on every start.
++    const wxSize  min_pixels = q->FromDIP(wxSize(std::min(size.GetWidth(), 220), std::min(size.GetHeight(), 160)));
+     wxAuiPaneInfo info;
+-    info.Name(unique_name).Caption(caption).BestSize(pixels).FloatingSize(pixels).DestroyOnClose(true);
++    info.Name(unique_name).Caption(caption).BestSize(pixels).MinSize(min_pixels).FloatingSize(pixels).DestroyOnClose(true);
+     if (dock == "left")
+         info.Left();
+     else if (dock == "bottom")
+@@ -8648,6 +8652,11 @@ void Plater::priv::add_dock_pane(wxWindow* window, const std::string& name, cons
+     if (!saved.empty()) {
+         m_aui_mgr.LoadPaneInfo(wxString::FromUTF8(saved), info);
+         info.Caption(caption).DestroyOnClose(true).Show();
++        // LoadPaneInfo also restores the saved minimum; a layout saved while the pane was collapsed is reset to
++        // the requested size.
++        info.MinSize(min_pixels);
++        if (info.best_size.GetWidth() < min_pixels.GetWidth() || info.best_size.GetHeight() < min_pixels.GetHeight())
++            info.BestSize(pixels);
+     }
+ 
+     // Floating is disabled on Wayland.
+-- 
+2.55.0
+
