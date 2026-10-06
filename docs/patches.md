@@ -76,6 +76,20 @@ falls back to the requested size when the saved layout is smaller than the minim
 
 **Drop when** Orca gives docked plugin panes a minimum size itself.
 
+## 0005: first-layer temperatures in the G-code header
+
+**Problem.** At the end of the G-code Orca writes `; first_layer_bed_temperature` and
+`; first_layer_temperature` "for compatibility", always for filament 1. Firmwares read these lines:
+Anycubic's GoKlipper parses them when a file is loaded, heats the bed with the bed value for its flow
+(pressure advance) calibration and stores it for power-loss recovery. A plate printed with filament 4
+(ASA, 110 °C) therefore got filament 1's 75 °C (PETG).
+
+**Change.** The bed line uses the same value as the bed temperature Orca writes before the start
+G-code: with *bed temperature formula = highest* the hottest of the used filaments, otherwise the
+first printing filament. The nozzle line uses the first printing filament.
+
+**Drop when** Orca writes these lines for the filaments actually printed.
+
 ### API reference
 
 ```python

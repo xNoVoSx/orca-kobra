@@ -14,6 +14,10 @@ repository, by date. Format based on [Keep a Changelog](https://keepachangelog.c
   line numbers.
 
 ### Added
+- Patch 0005 `gcode-header-first-layer-temps`: the first-layer temperature lines at the end of the
+  G-code describe the filaments actually printed (bed: highest of the used filaments with the
+  matching bed formula) instead of filament 1. GoKlipper used filament 1's bed temperature for its
+  flow calibration.
 - Patch 0004 `plugin-dock-pane-min-size`: docked plugin panels keep a minimum size, and a window
   layout saved while a panel was collapsed no longer brings it back a few pixels wide.
 
