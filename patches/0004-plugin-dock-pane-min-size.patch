@@ -1,8 +1,8 @@
 From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
 From: orca-kobra <orca-kobra@users.noreply.github.com>
 Date: Tue, 6 Oct 2026 00:09:42 +0200
-Subject: [PATCH] plugin dock panes: keep a minimum size and reset a
- collapsed saved layout
+Subject: [PATCH] plugin dock panes: keep a minimum size and reset a collapsed
+ saved layout
 
 A docked plugin pane had no minimum size, and the idle handler stores the
 pane's current width as its best size. A pane that was squeezed once (for
