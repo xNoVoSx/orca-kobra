@@ -24,7 +24,6 @@ AppImage from it every night:
 
 - The filament **sync button** picks the exact Spoolman profile for each ACE slot instead of a
   generic one for the material type.
-- **Plugins** can read and write in Orca's data folder on Linux (sandbox fix).
 - Plugins can read the **slice statistics** per filament — the kobra-spoolman plugin uses them to
   show what each spool needs for the plate.
 - Docked **plugin panels** can no longer collapse to a few pixels.
@@ -58,7 +57,7 @@ flowchart LR
 
 | Part | What it does |
 |---|---|
-| **[patches/](patches/)** | Five small patches on OrcaSlicer `main`, each one with a clear condition for when it can be dropped. Details: [docs/patches.md](docs/patches.md). |
+| **[patches/](patches/)** | Four small patches on OrcaSlicer `main`, each one with a clear condition for when it can be dropped. Details: [docs/patches.md](docs/patches.md). |
 | **[nightly.yml](.github/workflows/nightly.yml)** | Builds only when Orca or the patches changed, skips patches that Orca already contains, publishes an AppImage with checksum. Details: [docs/build.md](docs/build.md). |
 | **[tools/orca-kobra](tools/orca-kobra)** | Launcher: starts Orca immediately, downloads updates in the background, keeps the previous version as a fallback. |
 | **[tools/install.sh](tools/install.sh)** | Installs the launcher, the menu entry "OrcaSlicer (Kobra)" and its own icon for the current user. |
@@ -68,7 +67,6 @@ flowchart LR
 | Patch | Effect | Obsolete once … |
 |---|---|---|
 | `0001` moonraker-lane-data-filament-id | Sync button picks the preset by `filament_id` from Moonraker's `lane_data` (from Orca PR [#14423](https://github.com/OrcaSlicer/OrcaSlicer/pull/14423) by Broncosis) | #14423 is merged |
-| `0002` plugin-audit-linux-config-dir | Plugin sandbox no longer blocks the whole `~/.config/OrcaSlicer` because of `.config` | Orca fixes the bug |
 | `0003` plugin-host-slice-statistics | New read-only plugin API `orca.host.slice_statistics()`: usage per filament as in the preview legend, plus loads and filament changes (from → to) | Orca's plugin API offers it itself |
 | `0005` gcode-header-first-layer-temps | The first-layer temperature lines at the end of the G-code describe the filaments actually printed instead of filament 1 — GoKlipper heats the bed with them for its flow calibration | Orca writes them per used filament |
 | `0004` plugin-dock-pane-min-size | Plugin panels docked beside the 3D view keep a minimum size; a layout saved while a panel was collapsed no longer brings it back a few pixels wide | Orca fixes the bug |

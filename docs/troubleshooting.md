@@ -31,7 +31,7 @@ own logs are in `~/.config/OrcaSlicer/log/`.
 | Problem | Cause / solution |
 |---|---|
 | Sync button selects *Generic PLA* instead of the Spoolman profile | Printer agent is not *Moonraker* (Printer settings → Basic information → Advanced), you started a regular Orca instead of the Kobra build, or `lane_data` in Moonraker has no `filament_id`. Only base profiles (`inherits` empty) keep their own `filament_id`. |
-| Plugin cannot read or write in `~/.config/OrcaSlicer` (access denied in `log/python_*.log`) | Orca without patch 0002. Start "OrcaSlicer (Kobra)". |
+| Plugin cannot read or write in `~/.config/OrcaSlicer` (access denied in `log/python_*.log`) | OrcaSlicer older than 2026-10-09 (fixed upstream in #16243). Start "OrcaSlicer (Kobra)" or update Orca. |
 | kobra-spoolman panel shows no *Geplanter Verbrauch* | Orca without patch 0003 — update via the launcher. Otherwise slice again; the preview hides when the slice result is outdated. |
 | Panel says *gleichmäßig verteilt* (loads spread evenly) | The build has an older patch 0003 without load counts. Update; the first build with it is `kobra-20260924-2257-87a5d20`. |
 | Something is wrong in Orca itself | Check whether it also happens with an official [OrcaSlicer nightly](https://github.com/OrcaSlicer/OrcaSlicer/releases). If yes, report it upstream; if not, open an issue here. |

@@ -1,42 +1,103 @@
 name: Bug report
-description: Something does not work as described
+description: Something does not work in the patched OrcaSlicer build
 labels: [bug]
 body:
   - type: markdown
     attributes:
-      value: Thanks for reporting! Please fill in what you can - logs help the most.
+      value: |
+        Thanks for reporting! This repository only holds a few patches on top of OrcaSlicer. If the problem also
+        happens in the official [OrcaSlicer nightly](https://github.com/OrcaSlicer/OrcaSlicer/releases/tag/nightly-builds),
+        please report it to [OrcaSlicer](https://github.com/OrcaSlicer/OrcaSlicer/issues) instead – their template asks
+        for the same things as this one.
+  - type: checkboxes
+    id: checks
+    attributes:
+      label: Before you report
+      options:
+        - label: I use the latest build from the [releases](https://github.com/xNoVoSx/orca-kobra/releases) (`orca-kobra --status` shows it)
+          required: true
+        - label: I searched the [existing issues](https://github.com/xNoVoSx/orca-kobra/issues?q=is%3Aissue)
+          required: true
+  - type: dropdown
+    id: upstream
+    attributes:
+      label: Does it also happen in the official OrcaSlicer nightly?
+      options: ["No – only in this build", "Yes – also in the official nightly", "Not tested"]
+    validations:
+      required: true
   - type: dropdown
     id: component
     attributes:
       label: Component
+      multiple: true
       options:
         - "Patch 0001 (preset via lane_data.filament_id)"
-        - "Patch 0002 (plugin sandbox on Linux)"
         - "Patch 0003 (slice statistics for plugins)"
+        - "Patch 0004 (size of docked plugin panels)"
+        - "Patch 0005 (first layer temperatures in the G-code header)"
         - "Launcher / tools/install.sh"
         - "Nightly build / release"
         - "Documentation"
-        - "Other"
+        - "Other / don't know"
     validations:
       required: true
-  - type: textarea
-    id: what
+  - type: input
+    id: version
     attributes:
-      label: What happened / what did you expect?
+      label: Build
+      description: Output of `orca-kobra --status`, or the AppImage file name, or Help → About
+      placeholder: OrcaSlicer 2.4.0-dev, orca-kobra nightly 2026-10-12
+    validations:
+      required: true
+  - type: input
+    id: os
+    attributes:
+      label: Operating system
+      description: Distribution, version, desktop (and Wayland or X11)
+      placeholder: CachyOS (Arch), KDE Plasma 6.5, Wayland
+    validations:
+      required: true
+  - type: input
+    id: printer
+    attributes:
+      label: Printer
+      description: The printer profile selected in Orca, and the setup (Klipper + ACEPRO, Rinkhals, …)
     validations:
       required: true
   - type: textarea
     id: steps
     attributes:
       label: Steps to reproduce
-  - type: input
-    id: versions
+      description: What did you do, step by step?
+    validations:
+      required: true
+  - type: textarea
+    id: actual
     attributes:
-      label: Versions
-      description: Output of `orca-kobra --status` (or the AppImage file name), Linux distribution and desktop
+      label: What happened
+      description: Error messages as text, screenshots welcome
+    validations:
+      required: true
+  - type: textarea
+    id: expected
+    attributes:
+      label: What you expected
+    validations:
+      required: true
   - type: textarea
     id: logs
     attributes:
       label: Logs
-      description: "`~/.local/state/orca-kobra.log`, `~/.config/OrcaSlicer/log/`, link to a failed nightly run"
+      description: |
+        - Orca debug log: Help → Show Configuration Folder → `log/` (set Preferences → Log level to *debug* and reproduce first)
+        - Launcher: `~/.local/state/orca-kobra.log`
+        - Crash: the last lines of the terminal output, or the core dump summary (`coredumpctl info orca-slicer`)
+        Long logs: attach the file instead.
       render: text
+    validations:
+      required: true
+  - type: textarea
+    id: files
+    attributes:
+      label: Project file
+      description: Drag in the 3MF project (File → Save project as) – without it most slicing problems cannot be reproduced. Zip it if GitHub refuses the file type.

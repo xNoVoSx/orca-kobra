@@ -10,8 +10,12 @@ patch 0003 and describes how to edit, check and retire patches.
 | Patch | Files touched | Upstream status |
 |---|---|---|
 | [0001](#0001-preset-matching-via-lane_datafilament_id) moonraker-lane-data-filament-id | `Preset.cpp/.hpp`, `PresetBundle.cpp`, `MoonrakerPrinterAgent.cpp` | Orca PR [#14423](https://github.com/OrcaSlicer/OrcaSlicer/pull/14423), open |
-| [0002](#0002-plugin-sandbox-and-configorcaslicer) plugin-audit-linux-config-dir | `PluginAuditManager.cpp`, `test_plugin_audit.cpp` | not reported upstream yet |
 | [0003](#0003-slice-statistics-for-plugins) plugin-host-slice-statistics | `PluginHostApp.cpp` | not proposed upstream yet |
+| [0004](#0004-minimum-size-for-docked-plugin-panels) plugin-dock-pane-min-size | `PluginHostUi.cpp` | cause fixed upstream in [#16257](https://github.com/OrcaSlicer/OrcaSlicer/pull/16257); kept until a saved collapsed layout is checked |
+| [0005](#0005-first-layer-temperatures-in-the-g-code-header) gcode-header-first-layer-temps | `GCode.cpp/.hpp`, `test_gcode.cpp` | not proposed upstream yet |
+
+Dropped: 0002 `plugin-audit-linux-config-dir` (2026-10-13) – Orca matches the sandbox keywords as whole path components
+since [#16243](https://github.com/OrcaSlicer/OrcaSlicer/pull/16243), so `~/.config/OrcaSlicer` is no longer blocked.
 
 ## 0001: preset matching via `lane_data.filament_id`
 
@@ -34,21 +38,6 @@ inherit from a system profile do not. kobra-spoolman therefore creates base prof
 The printer agent must be set to *Moonraker*.
 
 **Drop when** #14423 is merged. The build then reports the patch as *skipped (already in Orca)*.
-
-## 0002: plugin sandbox and `~/.config/OrcaSlicer`
-
-**Problem.** Orca's plugin sandbox (`PluginAuditManager`) denies file access to paths that contain
-sensitive keywords such as `cert`, `secret` or `conf`. On Linux the data folder is
-`~/.config/OrcaSlicer`, and its `.config` component matched `conf`. So every plugin file access
-inside the data folder — profiles, plugin storage — was denied, although the data folder is an
-allowed root.
-
-**Change.** The keywords are only matched against the path components **below** the allowed root.
-Paths outside every allowed root stay denied, and so do sensitive folders inside a root (for
-example `resources/cert`). A unit test in `tests/slic3rutils/test_plugin_audit.cpp` covers both
-cases.
-
-**Drop when** Orca fixes the keyword matching itself.
 
 ## 0003: slice statistics for plugins
 

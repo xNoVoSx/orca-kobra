@@ -7,6 +7,21 @@ repository, by date. Format based on [Keep a Changelog](https://keepachangelog.c
 
 ## [Unreleased]
 
+### Removed
+- Patch 0002 `plugin-audit-linux-config-dir`: Orca matches the sandbox keywords as whole path components since
+  [#16243](https://github.com/OrcaSlicer/OrcaSlicer/pull/16243) (2026-10-09), so `~/.config/OrcaSlicer` is no longer
+  blocked. Its test failed against the new matching.
+
+### Fixed
+- The nightly build failed since 2026-10-11: Orca replaced `app_language()` with `app_info()` and added more plugin host
+  functions ([#16324](https://github.com/OrcaSlicer/OrcaSlicer/pull/16324)), so patch 0003 no longer applied. Rebased;
+  checked with a local build of Orca `main` plus all patches and Orca's test suite.
+- Patch 0005 has a unit test (`tests/fff_print/test_gcode.cpp`, fails without the patch).
+
+### Changed
+- Bug report form asks for what is needed to reproduce (like OrcaSlicer's): build, OS, printer, whether it also
+  happens in the official nightly, steps / what happened / what was expected, logs, project file.
+
 ### Fixed
 - The nightly build failed since 2026-10-03: Orca removed unused includes in
   `PluginAuditManager.cpp` and `PluginHostApp.cpp`, so patches 0002 and 0003 no longer applied.

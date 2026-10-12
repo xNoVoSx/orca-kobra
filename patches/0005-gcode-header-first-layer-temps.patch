@@ -13,15 +13,16 @@ bed_temperature_formula like the bed temperature written before the start
 G-code (highest of the used filaments, or the first printing filament), the
 nozzle line uses the first printing filament.
 ---
- src/libslic3r/GCode.cpp | 28 ++++++++++++++++++++++------
- src/libslic3r/GCode.hpp |  2 ++
- 2 files changed, 24 insertions(+), 6 deletions(-)
+ src/libslic3r/GCode.cpp        | 28 +++++++++++++++++-----
+ src/libslic3r/GCode.hpp        |  2 ++
+ tests/fff_print/test_gcode.cpp | 44 ++++++++++++++++++++++++++++++++++
+ 3 files changed, 68 insertions(+), 6 deletions(-)
 
 diff --git a/src/libslic3r/GCode.cpp b/src/libslic3r/GCode.cpp
-index 6ae5394ac..b644da8ea 100644
+index b79a38632..e69ae004e 100644
 --- a/src/libslic3r/GCode.cpp
 +++ b/src/libslic3r/GCode.cpp
-@@ -3722,12 +3722,13 @@ void GCode::_do_export(Print& print, GCodeOutputStream &file, ThumbnailsGenerato
+@@ -4149,12 +4149,13 @@ void GCode::_do_export(Print& print, GCodeOutputStream &file, ThumbnailsGenerato
                  file.write(full_config);
  
              // SoftFever: write compatiple image
@@ -38,7 +39,7 @@ index 6ae5394ac..b644da8ea 100644
              file.write("; CONFIG_BLOCK_END\n\n");
          } else if (thumbnail_cb != nullptr) {
              // generate the thumbnails
-@@ -4245,10 +4246,10 @@ void GCode::_do_export(Print& print, GCodeOutputStream &file, ThumbnailsGenerato
+@@ -4737,10 +4738,10 @@ void GCode::_do_export(Print& print, GCodeOutputStream &file, ThumbnailsGenerato
            file.write(full_config);
  
          // SoftFever: write compatiple info
@@ -52,7 +53,7 @@ index 6ae5394ac..b644da8ea 100644
          file.write_format("; first_layer_height = %.3f\n", print.config().initial_layer_print_height.value);
  
            //SF TODO
-@@ -4858,6 +4859,21 @@ int GCode::get_bed_temperature(const int extruder_id, const bool is_first_layer,
+@@ -5350,6 +5351,21 @@ int GCode::get_bed_temperature(const int extruder_id, const bool is_first_layer,
      return bed_temp_opt->get_at(extruder_id);
  }
  
@@ -75,10 +76,10 @@ index 6ae5394ac..b644da8ea 100644
  {
      auto bed_type = m_config.curr_bed_type;
 diff --git a/src/libslic3r/GCode.hpp b/src/libslic3r/GCode.hpp
-index ca89341f3..83e53f020 100644
+index c89b646ae..007d3b227 100644
 --- a/src/libslic3r/GCode.hpp
 +++ b/src/libslic3r/GCode.hpp
-@@ -828,6 +828,8 @@ private:
+@@ -931,6 +931,8 @@ protected:
      // BBS
      int get_bed_temperature(const int extruder_id, const bool is_first_layer, const BedType bed_type) const;
      int get_highest_bed_temperature(const bool is_first_layer,const Print &print) const;
@@ -87,6 +88,58 @@ index ca89341f3..83e53f020 100644
  
      void update_layer_related_config(int layer_id);
  
+diff --git a/tests/fff_print/test_gcode.cpp b/tests/fff_print/test_gcode.cpp
+index 7bd36481d..df3e53636 100644
+--- a/tests/fff_print/test_gcode.cpp
++++ b/tests/fff_print/test_gcode.cpp
+@@ -41,3 +41,47 @@ TEST_CASE("Klipper object labels name each copy without the characters Klipper c
+         CHECK(gcode.find("EXCLUDE_OBJECT_START NAME=" + instance_label + "\n") != std::string::npos);
+     }
+ }
++
++// Firmwares read the compatibility header lines (Anycubic's GoKlipper heats the bed with
++// first_layer_bed_temperature), so they must describe the filament the plate prints, not filament 1.
++TEST_CASE("The G-code header names the first layer temperatures of the filament the plate prints", "[GCode]")
++{
++    const std::string formula = GENERATE("by_first_filament", "by_highest_temp");
++    DYNAMIC_SECTION("bed_temperature_formula " << formula) {
++        // Filament 1: bed 60, nozzle 200. Filament 2: bed 100, nozzle 250. Everything prints with filament 2.
++        DynamicPrintConfig config = Test::multifilament_config(2, {
++            {"bed_temperature_formula", formula},
++            // Authored 1..n as PresetBundle writes it; the all-1s default collapses every per-filament value
++            // to filament 1.
++            {"filament_self_index", "1,2"},
++            {"filament_extruder_variant", "Direct Drive Standard;Direct Drive Standard"},
++            {"enable_prime_tower", 0},
++            {"nozzle_temperature_initial_layer", "200,250"},
++            {"nozzle_temperature", "200,250"},
++            {"supertack_plate_temp_initial_layer", "60,100"},
++            {"cool_plate_temp_initial_layer", "60,100"},
++            {"textured_cool_plate_temp_initial_layer", "60,100"},
++            {"eng_plate_temp_initial_layer", "60,100"},
++            {"hot_plate_temp_initial_layer", "60,100"},
++            {"textured_plate_temp_initial_layer", "60,100"},
++            {"sparse_infill_filament_id", 2},
++            {"internal_solid_filament_id", 2},
++            {"top_surface_filament_id", 2},
++            {"bottom_surface_filament_id", 2},
++            {"outer_wall_filament_id", 2},
++            {"inner_wall_filament_id", 2},
++            {"skirt_loops", 0},
++            {"brim_type", "no_brim"},
++        });
++        const std::string gcode = Test::slice({Test::cube(20)}, config);
++
++        const auto header_value = [&gcode](const std::string& key) {
++            const std::string token = "; " + key + " = ";
++            const size_t pos = gcode.find(token);
++            REQUIRE(pos != std::string::npos);
++            return std::stoi(gcode.substr(pos + token.size()));
++        };
++        CHECK(header_value("first_layer_bed_temperature") == 100);
++        CHECK(header_value("first_layer_temperature") == 250);
++    }
++}
 -- 
-2.55.0
+2.56.0
 
