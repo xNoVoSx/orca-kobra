@@ -16,12 +16,12 @@ and to estimate a filament changer's purge per colour change. The plate's
 valid flag is only set after SlicingJobComplete has been dispatched, so a
 handler of that event passes require_valid=False.
 ---
- src/slic3r/plugin/host/PluginHostApp.cpp   | 107 +++++++++++++++++++++
+ src/slic3r/plugin/host/PluginHostApp.cpp   | 108 +++++++++++++++++++++
  tests/slic3rutils/test_plugin_host_api.cpp |   2 +-
- 2 files changed, 108 insertions(+), 1 deletion(-)
+ 2 files changed, 109 insertions(+), 1 deletion(-)
 
 diff --git a/src/slic3r/plugin/host/PluginHostApp.cpp b/src/slic3r/plugin/host/PluginHostApp.cpp
-index b7fb1cdad..d9978a772 100644
+index b7fb1cdad..aaaad6d61 100644
 --- a/src/slic3r/plugin/host/PluginHostApp.cpp
 +++ b/src/slic3r/plugin/host/PluginHostApp.cpp
 @@ -3,6 +3,7 @@
@@ -40,17 +40,18 @@ index b7fb1cdad..d9978a772 100644
  #include <slic3r/GUI/Plater.hpp>
  #include <slic3r/Utils/CloudProvider.hpp>
  #include <slic3r/Utils/NetworkAgent.hpp>
-@@ -24,7 +26,9 @@
+@@ -24,7 +26,10 @@
  #include <boost/filesystem/path.hpp>
  #include <boost/optional/optional.hpp>
  
++#include <cstddef>
 +#include <map>
  #include <memory>
 +#include <set>
  #include <stdexcept>
  #include <wx/app.h>
  #include <wx/string.h>
-@@ -149,6 +153,102 @@ py::object selected_printer()
+@@ -149,6 +154,102 @@ py::object selected_printer()
      return std::move(out);
  }
  
@@ -153,7 +154,7 @@ index b7fb1cdad..d9978a772 100644
  } // namespace
  
  // Access to the live GUI application: the Plater and the module-level
-@@ -185,6 +285,13 @@ void host_bindings::register_app(py::module_& host)
+@@ -185,6 +286,13 @@ void host_bindings::register_app(py::module_& host)
               "Agent, model_id, connection ('lan' or 'cloud'), online, connected and firmware of the printer selected in the "
               "device list; model_id and firmware are empty for non-Bambu agents. None when none is selected. Print hosts "
               "configured in the printer preset (OctoPrint and the like) are not in the device list.");

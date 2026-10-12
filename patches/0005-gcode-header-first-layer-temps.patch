@@ -13,10 +13,10 @@ bed_temperature_formula like the bed temperature written before the start
 G-code (highest of the used filaments, or the first printing filament), the
 nozzle line uses the first printing filament.
 ---
- src/libslic3r/GCode.cpp        | 28 +++++++++++++++++-----
+ src/libslic3r/GCode.cpp        | 28 ++++++++++++++++-----
  src/libslic3r/GCode.hpp        |  2 ++
- tests/fff_print/test_gcode.cpp | 44 ++++++++++++++++++++++++++++++++++
- 3 files changed, 68 insertions(+), 6 deletions(-)
+ tests/fff_print/test_gcode.cpp | 45 ++++++++++++++++++++++++++++++++++
+ 3 files changed, 69 insertions(+), 6 deletions(-)
 
 diff --git a/src/libslic3r/GCode.cpp b/src/libslic3r/GCode.cpp
 index b79a38632..e69ae004e 100644
@@ -89,10 +89,18 @@ index c89b646ae..007d3b227 100644
      void update_layer_related_config(int layer_id);
  
 diff --git a/tests/fff_print/test_gcode.cpp b/tests/fff_print/test_gcode.cpp
-index 7bd36481d..df3e53636 100644
+index 7bd36481d..d2268efab 100644
 --- a/tests/fff_print/test_gcode.cpp
 +++ b/tests/fff_print/test_gcode.cpp
-@@ -41,3 +41,47 @@ TEST_CASE("Klipper object labels name each copy without the characters Klipper c
+@@ -12,6 +12,7 @@
+ 
+ #include "libslic3r/TriangleMesh.hpp"
+ #include "libslic3r/Point.hpp"
++#include <cstddef>
+ #include <string>
+ #include <vector>
+ 
+@@ -41,3 +42,47 @@ TEST_CASE("Klipper object labels name each copy without the characters Klipper c
          CHECK(gcode.find("EXCLUDE_OBJECT_START NAME=" + instance_label + "\n") != std::string::npos);
      }
  }
