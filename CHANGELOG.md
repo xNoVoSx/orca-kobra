@@ -19,6 +19,13 @@ repository, by date. Format based on [Keep a Changelog](https://keepachangelog.c
 - Patch 0005 has a unit test (`tests/fff_print/test_gcode.cpp`, fails without the patch).
 
 ### Changed
+- Patch 0003 after Orca's review ([#16423](https://github.com/OrcaSlicer/OrcaSlicer/pull/16423)):
+  `slice_statistics(plate_index=-1)` without `require_valid` and without `loads`; the plate's slice result is marked
+  valid before *SlicingJobComplete* fires, so the event handler reads it with the defaults. The description is the
+  function's docstring. The Kobra Spoolman plugin 0.7.2 works with old and new builds.
+- Patch 0005 after Orca's review ([#16422](https://github.com/OrcaSlicer/OrcaSlicer/pull/16422)): the temperatures are
+  taken once before the object loop, so printing by object writes the first object's filament (it wrote the last
+  one's); test for it.
 - Bug report form asks for what is needed to reproduce (like OrcaSlicer's): build, OS, printer, whether it also
   happens in the official nightly, steps / what happened / what was expected, logs, project file.
 

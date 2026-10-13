@@ -1,27 +1,54 @@
-From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
+From 6b9acaedb5a4c51a93349a1d9c5a0c07d59d91e9 Mon Sep 17 00:00:00 2001
 From: orca-kobra <orca-kobra@users.noreply.github.com>
 Date: Thu, 24 Sep 2026 20:59:00 +0200
-Subject: [PATCH] plugin host: expose per-filament slice statistics
+Subject: [PATCH 2/4] plugin host: expose per-filament slice statistics
 
-Add orca.host.slice_statistics(plate_index=-1, require_valid=True). It returns
-the per-filament volumes of a plate's last slice (model, support, prime tower,
-flush, total in mm^3) together with filament diameter and density, taken from
-the same GCodeProcessor statistics the preview legend uses, plus how often each
-filament is loaded (first use and every switch back to it, from the processed
-moves) and the filament changes in order: "transitions" lists each
-(from, to) pair with its count, from None for the first filament.
+Add orca.host.slice_statistics(plate_index=-1). It returns the per-filament
+volumes of a plate's last valid slice (model, support, prime tower, flush,
+total in mm^3) together with filament diameter and density, taken from the
+same GCodeProcessor statistics the preview legend uses, and the filament
+changes in order: "transitions" lists each (from, to) pair with its count,
+from None for the first filament.
 
 Plugins can use it to compare a slice with what is left on the loaded spools,
 and to estimate a filament changer's purge per colour change. The plate's
-valid flag is only set after SlicingJobComplete has been dispatched, so a
-handler of that event passes require_valid=False.
+slice result is now marked valid before SlicingJobComplete is fired, so a
+handler of that event can read it.
 ---
- src/slic3r/plugin/host/PluginHostApp.cpp   | 108 +++++++++++++++++++++
- tests/slic3rutils/test_plugin_host_api.cpp |   2 +-
- 2 files changed, 109 insertions(+), 1 deletion(-)
+ src/slic3r/GUI/Plater.cpp                  |  9 ++-
+ src/slic3r/plugin/host/PluginHostApp.cpp   | 88 ++++++++++++++++++++++
+ tests/slic3rutils/test_plugin_host_api.cpp |  2 +-
+ 3 files changed, 94 insertions(+), 5 deletions(-)
 
+diff --git a/src/slic3r/GUI/Plater.cpp b/src/slic3r/GUI/Plater.cpp
+index dd2d0e60d..f68e6fd33 100644
+--- a/src/slic3r/GUI/Plater.cpp
++++ b/src/slic3r/GUI/Plater.cpp
+@@ -13338,6 +13338,11 @@ void Plater::priv::on_process_completed(SlicingProcessCompletedEvent &evt)
+         is_finished = true;
+     }
+ 
++    //BBS: set the current plater's slice result to valid
++    // Orca: before SlicingJobComplete, so its handlers see the result as valid
++    if (!this->background_process.empty())
++        this->background_process.get_current_plate()->update_slice_result_valid_state(evt.success());
++
+     {
+         Slic3r::LifecycleEventContext ctx;
+         if (const PrintBase* print = this->background_process.current_print()) {
+@@ -13356,10 +13361,6 @@ void Plater::priv::on_process_completed(SlicingProcessCompletedEvent &evt)
+         Slic3r::fire_lifecycle_event(Slic3r::LifecycleEvent::SlicingJobComplete, ctx);
+     }
+ 
+-    //BBS: set the current plater's slice result to valid
+-    if (!this->background_process.empty())
+-        this->background_process.get_current_plate()->update_slice_result_valid_state(evt.success());
+-
+     //BBS: update the action button according to the current plate's status
+     bool ready_to_slice = !this->partplate_list.get_curr_plate()->is_slice_result_valid();
+ 
 diff --git a/src/slic3r/plugin/host/PluginHostApp.cpp b/src/slic3r/plugin/host/PluginHostApp.cpp
-index b7fb1cdad..aaaad6d61 100644
+index b7fb1cdad..c10ae6529 100644
 --- a/src/slic3r/plugin/host/PluginHostApp.cpp
 +++ b/src/slic3r/plugin/host/PluginHostApp.cpp
 @@ -3,6 +3,7 @@
@@ -40,28 +67,23 @@ index b7fb1cdad..aaaad6d61 100644
  #include <slic3r/GUI/Plater.hpp>
  #include <slic3r/Utils/CloudProvider.hpp>
  #include <slic3r/Utils/NetworkAgent.hpp>
-@@ -24,7 +26,10 @@
+@@ -24,7 +26,11 @@
  #include <boost/filesystem/path.hpp>
  #include <boost/optional/optional.hpp>
  
 +#include <cstddef>
 +#include <map>
  #include <memory>
++#include <mutex>
 +#include <set>
  #include <stdexcept>
  #include <wx/app.h>
  #include <wx/string.h>
-@@ -149,6 +154,102 @@ py::object selected_printer()
+@@ -149,6 +155,82 @@ py::object selected_printer()
      return std::move(out);
  }
  
-+// Per-filament material usage of a plate's last slice, straight from the
-+// GCodeProcessor statistics the preview legend is built from. Volumes are mm^3,
-+// keyed by the 0-based filament index. "loads" counts how often a filament
-+// becomes the extruding one (first use plus every switch back to it), which is
-+// how often a printer with a filament changer loads it. Returns None when the
-+// plate has no slice result.
-+py::object slice_statistics(int plate_index, bool require_valid)
++py::object slice_statistics(int plate_index)
 +{
 +    GUI::Plater* plater = current_plater();
 +    require_main_thread("slice_statistics");
@@ -71,11 +93,7 @@ index b7fb1cdad..aaaad6d61 100644
 +        plate = plates.get_curr_plate();
 +    else if (plate_index < plates.get_plate_count())
 +        plate = plates.get_plate(plate_index);
-+    if (plate == nullptr)
-+        return py::none();
-+
-+    const bool valid = plate->is_slice_result_valid();
-+    if (require_valid && !valid)
++    if (plate == nullptr || !plate->is_slice_result_valid())
 +        return py::none();
 +
 +    const GCodeProcessorResult* result = plate->get_slice_result();
@@ -83,17 +101,11 @@ index b7fb1cdad..aaaad6d61 100644
 +        return py::none();
 +
 +    // The result is shared with the background slicing process.
-+    struct ResultLock {
-+        const GCodeProcessorResult* r;
-+        explicit ResultLock(const GCodeProcessorResult* r) : r(r) { r->lock(); }
-+        ~ResultLock() { r->unlock(); }
-+    } result_lock(result);
++    std::lock_guard<std::mutex> lock(result->result_mutex);
 +
 +    const PrintEstimatedStatistics& ps = result->print_statistics;
 +
-+    // Loads per filament and the order they happen in: (from, to) -> count,
-+    // from -1 for the first filament of the print.
-+    std::map<size_t, unsigned int> loads;
++    // Filament changes in order: (from, to) -> count, from -1 for the first filament of the print.
 +    std::map<std::pair<int, int>, unsigned int> transitions;
 +    int active = -1;
 +    for (const GCodeProcessorResult::MoveVertex& move : result->moves) {
@@ -101,7 +113,6 @@ index b7fb1cdad..aaaad6d61 100644
 +            continue;
 +        ++transitions[{active, static_cast<int>(move.extruder_id)}];
 +        active = move.extruder_id;
-+        ++loads[move.extruder_id];
 +    }
 +
 +    std::set<size_t> ids;
@@ -125,8 +136,6 @@ index b7fb1cdad..aaaad6d61 100644
 +        f["tower_mm3"]   = volume_of(ps.wipe_tower_volumes_per_extruder, id);
 +        f["flush_mm3"]   = volume_of(ps.flush_per_filament, id);
 +        f["total_mm3"]   = volume_of(ps.total_volumes_per_extruder, id);
-+        const auto l     = loads.find(id);
-+        f["loads"]       = l == loads.end() ? 0u : l->second;
 +        f["diameter"]    = id < result->filament_diameters.size() ? py::object(py::float_(result->filament_diameters[id])) : py::object(py::none());
 +        f["density"]     = id < result->filament_densities.size() ? py::object(py::float_(result->filament_densities[id])) : py::object(py::none());
 +        filaments.append(std::move(f));
@@ -134,7 +143,6 @@ index b7fb1cdad..aaaad6d61 100644
 +
 +    py::dict out;
 +    out["plate_index"]                  = plate->get_index();
-+    out["valid"]                        = valid;
 +    out["filaments"]                    = std::move(filaments);
 +    out["total_filament_changes"]       = ps.total_filament_changes;
 +    out["total_flush_filament_changes"] = ps.total_flush_filament_changes;
@@ -154,17 +162,16 @@ index b7fb1cdad..aaaad6d61 100644
  } // namespace
  
  // Access to the live GUI application: the Plater and the module-level
-@@ -185,6 +286,13 @@ void host_bindings::register_app(py::module_& host)
+@@ -185,6 +267,12 @@ void host_bindings::register_app(py::module_& host)
               "Agent, model_id, connection ('lan' or 'cloud'), online, connected and firmware of the printer selected in the "
               "device list; model_id and firmware are empty for non-Bambu agents. None when none is selected. Print hosts "
               "configured in the printer preset (OctoPrint and the like) are not in the device list.");
-+    // Material usage of the last slice per filament (model, support, prime
-+    // tower, flush, total in mm^3 plus diameter, density and load count) and the
-+    // filament changes in order ("transitions": from, to, count), so
-+    // plugins can compare it with what is left on the loaded spools. plate_index -1 is the
-+    // current plate. The valid flag is only set after SlicingJobComplete has been
-+    // dispatched, so a handler of that event passes require_valid=False.
-+    host.def("slice_statistics", &slice_statistics, py::arg("plate_index") = -1, py::arg("require_valid") = true);
++    host.def("slice_statistics", &slice_statistics, py::arg("plate_index") = -1,
++             "Material usage of the last valid slice of a plate (plate_index -1 is the current plate), as the preview "
++             "legend shows it: per filament (0-based index) the model, support, prime tower, flush and total volume in "
++             "mm^3 plus diameter and density; total_filament_changes, total_flush_filament_changes and the filament "
++             "changes in order as transitions (from, to, count; from is None for the first filament). None when the "
++             "plate has no valid slice result.");
  }
  
  } // namespace Slic3r

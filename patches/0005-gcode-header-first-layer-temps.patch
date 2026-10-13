@@ -1,7 +1,7 @@
-From 261a37435fc09e6fc9f670d122781dc7f1f5ff2c Mon Sep 17 00:00:00 2001
+From f215612b8b54fe053916d71cde4ca29c7670bdac Mon Sep 17 00:00:00 2001
 From: orca-kobra <orca-kobra@users.noreply.github.com>
 Date: Tue, 6 Oct 2026 02:16:51 +0200
-Subject: [PATCH] G-code header: first layer temperatures of the filaments
+Subject: [PATCH 4/4] G-code header: first layer temperatures of the filaments
  actually printed
 
 The compatibility lines "; first_layer_bed_temperature" and
@@ -13,22 +13,19 @@ bed_temperature_formula like the bed temperature written before the start
 G-code (highest of the used filaments, or the first printing filament), the
 nozzle line uses the first printing filament.
 ---
- src/libslic3r/GCode.cpp        | 23 +++++----
+ src/libslic3r/GCode.cpp        | 20 ++++----
  tests/fff_print/test_gcode.cpp | 88 ++++++++++++++++++++++++++++++++++
- 2 files changed, 102 insertions(+), 9 deletions(-)
+ 2 files changed, 99 insertions(+), 9 deletions(-)
 
 diff --git a/src/libslic3r/GCode.cpp b/src/libslic3r/GCode.cpp
-index f423681c9..1505d2956 100644
+index f423681c9..eaf037008 100644
 --- a/src/libslic3r/GCode.cpp
 +++ b/src/libslic3r/GCode.cpp
-@@ -3559,6 +3559,16 @@ void GCode::_do_export(Print& print, GCodeOutputStream &file, ThumbnailsGenerato
+@@ -3559,6 +3559,13 @@ void GCode::_do_export(Print& print, GCodeOutputStream &file, ThumbnailsGenerato
  
      print.throw_if_canceled();
  
-+    // First layer temperatures for the compatibility lines in the header. Firmwares read them (e.g. Anycubic GoKlipper
-+    // heats the bed with it for its flow calibration and keeps it for power-loss recovery), so they follow the print:
-+    // the bed like the bed temperature before the start G-code, the nozzle by the first printing filament. Taken here
-+    // because printing by object reassigns initial_extruder_id to each object's first filament below.
++    // Taken before the object loop, which reassigns initial_extruder_id when printing by object.
 +    const int compat_first_layer_bed_temp = m_config.bed_temperature_formula == BedTempFormula::btfHighestTemp ?
 +                                                get_highest_bed_temperature(true, print) :
 +                                                get_bed_temperature(initial_extruder_id, true, print.config().curr_bed_type);
@@ -38,7 +35,7 @@ index f423681c9..1505d2956 100644
      int extruder_id = get_extruder_id(initial_extruder_id);
  
      m_cooling_buffer = make_unique<CoolingBuffer>(*this);
-@@ -4149,12 +4159,8 @@ void GCode::_do_export(Print& print, GCodeOutputStream &file, ThumbnailsGenerato
+@@ -4149,12 +4156,8 @@ void GCode::_do_export(Print& print, GCodeOutputStream &file, ThumbnailsGenerato
                  file.write(full_config);
  
              // SoftFever: write compatiple image
@@ -53,7 +50,7 @@ index f423681c9..1505d2956 100644
              file.write("; CONFIG_BLOCK_END\n\n");
          } else if (thumbnail_cb != nullptr) {
              // generate the thumbnails
-@@ -4737,10 +4743,9 @@ void GCode::_do_export(Print& print, GCodeOutputStream &file, ThumbnailsGenerato
+@@ -4737,10 +4740,9 @@ void GCode::_do_export(Print& print, GCodeOutputStream &file, ThumbnailsGenerato
            file.write(full_config);
  
          // SoftFever: write compatiple info
