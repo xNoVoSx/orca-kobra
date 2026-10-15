@@ -8,11 +8,18 @@ repository, by date. Format based on [Keep a Changelog](https://keepachangelog.c
 ## [Unreleased]
 
 ### Removed
+- Patch 0005 `gcode-header-first-layer-temps`: merged into Orca as
+  [#16422](https://github.com/OrcaSlicer/OrcaSlicer/pull/16422) (2026-10-14); Orca's own version would conflict with it.
 - Patch 0002 `plugin-audit-linux-config-dir`: Orca matches the sandbox keywords as whole path components since
   [#16243](https://github.com/OrcaSlicer/OrcaSlicer/pull/16243) (2026-10-09), so `~/.config/OrcaSlicer` is no longer
   blocked. Its test failed against the new matching.
 
 ### Fixed
+- The nightly build failed on 2026-10-14: Orca's hot reload of preset bundles
+  ([#15424](https://github.com/OrcaSlicer/OrcaSlicer/pull/15424)) changed the plugin host test file, so patch 0003 no longer applied. Patches
+  0001, 0003 and 0004 rebased onto Orca `main` b75af485c (code unchanged, only the context); checked with
+  `scripts/apply-patches.sh` against a clean `main`.
+- docs/patches.md described the API of patch 0003 before Orca's review (`require_valid`, `valid`, `loads`); now as built.
 - The nightly build failed since 2026-10-11: Orca replaced `app_language()` with `app_info()` and added more plugin host
   functions ([#16324](https://github.com/OrcaSlicer/OrcaSlicer/pull/16324)), so patch 0003 no longer applied. Rebased;
   checked with a local build of Orca `main` plus all patches and Orca's test suite.

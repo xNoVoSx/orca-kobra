@@ -1,7 +1,7 @@
-From 6b9acaedb5a4c51a93349a1d9c5a0c07d59d91e9 Mon Sep 17 00:00:00 2001
+From 09f5df55ed46739bfcd6229f0811a62bf46ae83a Mon Sep 17 00:00:00 2001
 From: orca-kobra <orca-kobra@users.noreply.github.com>
 Date: Thu, 24 Sep 2026 20:59:00 +0200
-Subject: [PATCH 2/4] plugin host: expose per-filament slice statistics
+Subject: [PATCH 2/3] plugin host: expose per-filament slice statistics
 
 Add orca.host.slice_statistics(plate_index=-1). It returns the per-filament
 volumes of a plate's last valid slice (model, support, prime tower, flush,
@@ -21,10 +21,10 @@ handler of that event can read it.
  3 files changed, 94 insertions(+), 5 deletions(-)
 
 diff --git a/src/slic3r/GUI/Plater.cpp b/src/slic3r/GUI/Plater.cpp
-index dd2d0e60d..f68e6fd33 100644
+index 6e4d3e34e..606da102f 100644
 --- a/src/slic3r/GUI/Plater.cpp
 +++ b/src/slic3r/GUI/Plater.cpp
-@@ -13338,6 +13338,11 @@ void Plater::priv::on_process_completed(SlicingProcessCompletedEvent &evt)
+@@ -13344,6 +13344,11 @@ void Plater::priv::on_process_completed(SlicingProcessCompletedEvent &evt)
          is_finished = true;
      }
  
@@ -36,7 +36,7 @@ index dd2d0e60d..f68e6fd33 100644
      {
          Slic3r::LifecycleEventContext ctx;
          if (const PrintBase* print = this->background_process.current_print()) {
-@@ -13356,10 +13361,6 @@ void Plater::priv::on_process_completed(SlicingProcessCompletedEvent &evt)
+@@ -13362,10 +13367,6 @@ void Plater::priv::on_process_completed(SlicingProcessCompletedEvent &evt)
          Slic3r::fire_lifecycle_event(Slic3r::LifecycleEvent::SlicingJobComplete, ctx);
      }
  
@@ -176,12 +176,12 @@ index b7fb1cdad..c10ae6529 100644
  
  } // namespace Slic3r
 diff --git a/tests/slic3rutils/test_plugin_host_api.cpp b/tests/slic3rutils/test_plugin_host_api.cpp
-index 0841a130d..b4dfad520 100644
+index 301acbc7c..ccc47504d 100644
 --- a/tests/slic3rutils/test_plugin_host_api.cpp
 +++ b/tests/slic3rutils/test_plugin_host_api.cpp
-@@ -133,7 +133,7 @@ TEST_CASE("Plugin host API reports unavailable GUI objects before Orca app initi
- {
+@@ -142,7 +142,7 @@ TEST_CASE("Plugin host API reports unavailable GUI objects before Orca app initi
      py::object host = import_orca_module().attr("host");
+     py::object bundles = host.attr("preset").attr("bundles");
  
 -    for (const char* function_name : { "preset_bundle", "plater", "model", "app_info", "selected_printer" }) {
 +    for (const char* function_name : { "preset_bundle", "plater", "model", "app_info", "selected_printer", "slice_statistics" }) {

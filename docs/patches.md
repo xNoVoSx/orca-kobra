@@ -10,11 +10,12 @@ patch 0003 and describes how to edit, check and retire patches.
 | Patch | Files touched | Upstream status |
 |---|---|---|
 | [0001](#0001-preset-matching-via-lane_datafilament_id) moonraker-lane-data-filament-id | `Preset.cpp/.hpp`, `PresetBundle.cpp`, `MoonrakerPrinterAgent.cpp` | Orca PR [#14423](https://github.com/OrcaSlicer/OrcaSlicer/pull/14423), open |
-| [0003](#0003-slice-statistics-for-plugins) plugin-host-slice-statistics | `PluginHostApp.cpp` | not proposed upstream yet |
+| [0003](#0003-slice-statistics-for-plugins) plugin-host-slice-statistics | `Plater.cpp`, `PluginHostApp.cpp`, `test_plugin_host_api.cpp` | Orca PR [#16423](https://github.com/OrcaSlicer/OrcaSlicer/pull/16423), open |
 | [0004](#0004-minimum-size-for-docked-plugin-panels) plugin-dock-pane-min-size | `PluginHostUi.cpp` | cause fixed upstream in [#16257](https://github.com/OrcaSlicer/OrcaSlicer/pull/16257); kept until a saved collapsed layout is checked |
-| [0005](#0005-first-layer-temperatures-in-the-g-code-header) gcode-header-first-layer-temps | `GCode.cpp/.hpp`, `test_gcode.cpp` | not proposed upstream yet |
 
-Dropped: 0002 `plugin-audit-linux-config-dir` (2026-10-13) – Orca matches the sandbox keywords as whole path components
+Dropped: 0005 `gcode-header-first-layer-temps` (2026-10-15) – merged into Orca as
+[#16422](https://github.com/OrcaSlicer/OrcaSlicer/pull/16422) (2026-10-14).
+0002 `plugin-audit-linux-config-dir` (2026-10-13) – Orca matches the sandbox keywords as whole path components
 since [#16243](https://github.com/OrcaSlicer/OrcaSlicer/pull/16243), so `~/.config/OrcaSlicer` is no longer blocked.
 
 ## 0001: preset matching via `lane_data.filament_id`
@@ -65,38 +66,22 @@ falls back to the requested size when the saved layout is smaller than the minim
 
 **Drop when** Orca gives docked plugin panes a minimum size itself.
 
-## 0005: first-layer temperatures in the G-code header
-
-**Problem.** At the end of the G-code Orca writes `; first_layer_bed_temperature` and
-`; first_layer_temperature` "for compatibility", always for filament 1. Firmwares read these lines:
-Anycubic's GoKlipper parses them when a file is loaded, heats the bed with the bed value for its flow
-(pressure advance) calibration and stores it for power-loss recovery. A plate printed with filament 4
-(ASA, 110 °C) therefore got filament 1's 75 °C (PETG).
-
-**Change.** The bed line uses the same value as the bed temperature Orca writes before the start
-G-code: with *bed temperature formula = highest* the hottest of the used filaments, otherwise the
-first printing filament. The nozzle line uses the first printing filament.
-
-**Drop when** Orca writes these lines for the filaments actually printed.
-
 ### API reference
 
 ```python
-orca.host.slice_statistics(plate_index=-1, require_valid=True) -> dict | None
+orca.host.slice_statistics(plate_index=-1) -> dict | None
 ```
 
 | Parameter | Meaning |
 |---|---|
 | `plate_index` | 0-based plate; `-1` is the current plate |
-| `require_valid` | Return `None` if the plate's slice result is outdated. Pass `False` in a `SlicingJobComplete` handler: the plate's valid flag is only set **after** that event has been dispatched. |
 
-Returns `None` if the plate does not exist, has no slice result, or the result is not valid and
-`require_valid` is true. Otherwise:
+Returns `None` if the plate does not exist or has no valid slice result. The patch marks the slice
+result valid before *SlicingJobComplete* is fired, so a handler of that event gets the numbers. Otherwise:
 
 | Key | Type | Meaning |
 |---|---|---|
 | `plate_index` | int | Plate the numbers belong to |
-| `valid` | bool | Whether the slice result is up to date |
 | `filaments` | list | One entry per filament used, see below |
 | `total_filament_changes` | int | Filament changes, as in the preview legend |
 | `total_flush_filament_changes` | int | Changes that flush, as in the preview legend |
@@ -112,7 +97,6 @@ Each entry of `filaments`:
 | `tower_mm3` | float | Volume for the prime tower |
 | `flush_mm3` | float | Volume flushed into the tower or purge ("Flushed" in the legend) |
 | `total_mm3` | float | Orca's total per extruder. It assigns the tower differently at tool changes; for per-filament totals like the legend, add model + support + flush + tower. |
-| `loads` | int | How often the filament becomes the extruding one: first use plus every switch back to it. On a printer with a filament changer that is the number of loads. |
 | `diameter` | float or None | Filament diameter in mm |
 | `density` | float or None | Density in g/cm³ |
 
@@ -129,13 +113,13 @@ class UsageCheck(orca.script.ScriptPluginCapabilityBase):
         if event != orca.LifecycleEvent.SlicingJobComplete or ctx.code != orca.LifecycleEvtCode.Ok:
             return
         slice_statistics = getattr(orca.host, "slice_statistics", None)
-        stats = slice_statistics(-1, False) if slice_statistics else None  # require_valid=False, see above
+        stats = slice_statistics() if slice_statistics else None
         if stats is None:
             return
         for f in stats["filaments"]:
             used = f["model_mm3"] + f["support_mm3"] + f["flush_mm3"] + f["tower_mm3"]
             grams = used * (f["density"] or 1.24) / 1000
-            print(f"slot {f['index'] + 1}: {grams:.1f} g, loaded {f['loads']}x")
+            print(f"slot {f['index'] + 1}: {grams:.1f} g")
 ```
 
 Firmware purge on load (for example by the ACE on a Kobra S1) is **not** part of Orca's
