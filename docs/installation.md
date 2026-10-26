@@ -60,7 +60,7 @@ The build uses the normal Orca data folder `~/.config/OrcaSlicer`, so your print
 plugins and settings are there right away. Do not run a regular Orca and the Kobra build at the
 same time — both write the same settings file.
 
-For the sync button to pick the right profile per ACE slot (patch 0001):
+For the sync button to pick the right profile per ACE slot (by `lane_data.filament_id`, in Orca since #14423):
 
 - Add the printer as usual (Anycubic Kobra S1 0.4 nozzle) and connect it to `http://<printer-ip>`.
 - **Printer settings → Basic information → Advanced** (advanced mode): **Printer agent = Moonraker**.

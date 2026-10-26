@@ -8,6 +8,10 @@ repository, by date. Format based on [Keep a Changelog](https://keepachangelog.c
 ## [Unreleased]
 
 ### Removed
+- Patch 0001 `moonraker-lane-data-filament-id`: merged into Orca as
+  [#14423](https://github.com/OrcaSlicer/OrcaSlicer/pull/14423) (2026-10-26). Orca's version is slimmer — the lane's
+  `filament_id` (a string) goes to the shared AMS matcher and matches a compatible root preset carrying it, without the
+  name-based fallback; kobra-spoolman's Spoolman profiles are such root presets, so the sync button works as before.
 - Patch 0005 `gcode-header-first-layer-temps`: merged into Orca as
   [#16422](https://github.com/OrcaSlicer/OrcaSlicer/pull/16422) (2026-10-14); Orca's own version would conflict with it.
 - Patch 0002 `plugin-audit-linux-config-dir`: Orca matches the sandbox keywords as whole path components since

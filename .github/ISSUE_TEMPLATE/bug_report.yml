@@ -31,10 +31,8 @@ body:
       label: Component
       multiple: true
       options:
-        - "Patch 0001 (preset via lane_data.filament_id)"
         - "Patch 0003 (slice statistics for plugins)"
         - "Patch 0004 (size of docked plugin panels)"
-        - "Patch 0005 (first layer temperatures in the G-code header)"
         - "Launcher / tools/install.sh"
         - "Nightly build / release"
         - "Documentation"

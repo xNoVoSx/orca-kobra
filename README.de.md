@@ -39,7 +39,7 @@ flowchart LR
     UP[OrcaSlicer<br/>main-Zweig]
     subgraph GH["GitHub Actions (nachts)"]
         CK{Neuer Orca-Commit<br/>oder Patches geändert?}
-        AP[Patches anwenden<br/>0001 … 0004]
+        AP[Patches anwenden<br/>0003, 0004]
         BU[AppImage bauen<br/>Abhängigkeits-Cache + ccache]
     end
     RE[(Release<br/>AppImage + sha256)]
@@ -57,7 +57,7 @@ flowchart LR
 
 | Teil | Was er macht |
 |---|---|
-| **[patches/](patches/)** | Drei kleine Patches auf OrcaSlicer `main`, jeder mit einer klaren Bedingung, wann er wegfallen kann. Details: [docs/patches.md](docs/patches.md) (englisch). |
+| **[patches/](patches/)** | Zwei kleine Patches auf OrcaSlicer `main`, jeder mit einer klaren Bedingung, wann er wegfallen kann. Details: [docs/patches.md](docs/patches.md) (englisch). |
 | **[nightly.yml](.github/workflows/nightly.yml)** | Baut nur, wenn sich Orca oder die Patches geändert haben, überspringt Patches, die Orca schon enthält, veröffentlicht ein AppImage mit Prüfsumme. Details: [docs/build.md](docs/build.md) (englisch). |
 | **[tools/orca-kobra](tools/orca-kobra)** | Starter: startet Orca sofort, lädt Updates im Hintergrund, behält die vorherige Version als Rückfall. |
 | **[tools/install.sh](tools/install.sh)** | Installiert Starter, Menüeintrag „OrcaSlicer (Kobra)“ und ein eigenes Icon für den aktuellen Benutzer. |
@@ -66,7 +66,6 @@ flowchart LR
 
 | Patch | Wirkung | Entfällt, wenn … |
 |---|---|---|
-| `0001` moonraker-lane-data-filament-id | Sync-Knopf wählt das Profil über `filament_id` aus Moonrakers `lane_data` (aus Orca-PR [#14423](https://github.com/OrcaSlicer/OrcaSlicer/pull/14423) von Broncosis) | #14423 übernommen ist |
 | `0003` plugin-host-slice-statistics | Neue, nur lesende Plugin-Funktion `orca.host.slice_statistics()`: Verbrauch pro Filament wie in der Vorschau-Legende, dazu die Filamentwechsel (von → nach) | Orca-PR [#16423](https://github.com/OrcaSlicer/OrcaSlicer/pull/16423) gemergt ist |
 | `0004` plugin-dock-pane-min-size | Neben der 3D-Ansicht angedockte Plugin-Panels behalten eine Mindestgröße; ein Layout, das gespeichert wurde, während ein Panel zusammengedrückt war, bringt es nicht mehr wenige Pixel breit zurück | Orca den Fehler behebt |
 
@@ -78,8 +77,8 @@ Patches, die Orca schon enthält, werden automatisch übersprungen und in den Re
 - `curl`, `python3`, `sha256sum` und `flock` für den Starter – auf fast jedem System vorhanden.
 - Optional: `rsvg-convert` oder ImageMagick (`magick`), damit das Icon auch als PNG installiert wird.
 - Für den ganzen Ablauf mit Spoolman: [kobra-spoolman](https://github.com/xNoVoSx/kobra-spoolman)
-  (Bridge und Orca-Plugin). Patch 0001 hilft auch ohne, solange etwas `lane_data.filament_id` in
-  Moonraker füllt.
+  (Bridge und Orca-Plugin). Der Sync-Knopf wählt das Profil über `lane_data.filament_id` – in Orca
+  selbst seit [#14423](https://github.com/OrcaSlicer/OrcaSlicer/pull/14423) (26.10.2026).
 
 > [!NOTE]
 > Meldungen des Starters und der Menüeintrag sind deutsch. Die Patches und OrcaSlicer selbst
@@ -94,7 +93,7 @@ tools/install.sh
 
 Danach **„OrcaSlicer (Kobra)“** aus dem Anwendungsmenü starten. In Orca unter
 **Druckereinstellungen → Grundlegende Informationen → Erweitert** (Expertenmodus)
-**Printer Agent = Moonraker** einstellen, damit der Sync-Knopf Patch 0001 nutzt.
+**Printer Agent = Moonraker** einstellen, damit der Sync-Knopf die Slots (mit ihrer `filament_id`) aus Moonraker liest.
 
 Ganze Anleitung: **[docs/de/installation.md](docs/de/installation.md)**.
 
@@ -112,7 +111,7 @@ Ganze Anleitung: **[docs/de/installation.md](docs/de/installation.md)**.
 ## Danke
 
 [OrcaSlicer](https://github.com/OrcaSlicer/OrcaSlicer) ·
-Orca-PR [#14423](https://github.com/OrcaSlicer/OrcaSlicer/pull/14423) von Broncosis ·
+Orca-PR [#14423](https://github.com/OrcaSlicer/OrcaSlicer/pull/14423) von Broncosis (jetzt in Orca) ·
 [Rinkhals](https://github.com/rinkhals-community/Rinkhals) ·
 [Spoolman](https://github.com/Donkie/Spoolman)
 

@@ -9,36 +9,17 @@ patch 0003 and describes how to edit, check and retire patches.
 
 | Patch | Files touched | Upstream status |
 |---|---|---|
-| [0001](#0001-preset-matching-via-lane_datafilament_id) moonraker-lane-data-filament-id | `Preset.cpp/.hpp`, `PresetBundle.cpp`, `MoonrakerPrinterAgent.cpp` | Orca PR [#14423](https://github.com/OrcaSlicer/OrcaSlicer/pull/14423), open |
 | [0003](#0003-slice-statistics-for-plugins) plugin-host-slice-statistics | `Plater.cpp`, `PluginHostApp.cpp`, `test_plugin_host_api.cpp` | Orca PR [#16423](https://github.com/OrcaSlicer/OrcaSlicer/pull/16423), open |
 | [0004](#0004-minimum-size-for-docked-plugin-panels) plugin-dock-pane-min-size | `PluginHostUi.cpp` | cause fixed upstream in [#16257](https://github.com/OrcaSlicer/OrcaSlicer/pull/16257); kept until a saved collapsed layout is checked |
 
-Dropped: 0005 `gcode-header-first-layer-temps` (2026-10-15) – merged into Orca as
+Dropped: 0001 `moonraker-lane-data-filament-id` (2026-10-26) – merged into Orca as
+[#14423](https://github.com/OrcaSlicer/OrcaSlicer/pull/14423) (2026-10-26) in a slimmer form: a `lane_data`
+`filament_id` (a string) goes to the shared AMS matcher as the tray id and matches a compatible root preset carrying
+it; the name-based fallback was left out. kobra-spoolman's profiles are root presets with that id, so nothing changes.
+0005 `gcode-header-first-layer-temps` (2026-10-15) – merged into Orca as
 [#16422](https://github.com/OrcaSlicer/OrcaSlicer/pull/16422) (2026-10-14).
 0002 `plugin-audit-linux-config-dir` (2026-10-13) – Orca matches the sandbox keywords as whole path components
 since [#16243](https://github.com/OrcaSlicer/OrcaSlicer/pull/16243), so `~/.config/OrcaSlicer` is no longer blocked.
-
-## 0001: preset matching via `lane_data.filament_id`
-
-**Problem.** Orca's Moonraker agent reads the filament slots from Moonraker's `lane_data`
-(written by tools such as [ace-lane-bridge](https://github.com/xNoVoSx/kobra-spoolman)). Upstream
-it only matches by material type, so the sync button puts *Generic PLA* into a slot even
-when a matching user profile exists.
-
-**Change.** Taken unchanged from Orca PR #14423 by Broncosis:
-
-- New `PresetCollection::filament_id_by_id_or_name()` matches by `filament_id`, then `setting_id`,
-  then the preset name (exact, then case-insensitive / base name).
-- `MoonrakerPrinterAgent::fetch_moonraker_filament_data()` uses it for the `filament_id` and
-  `setting_id` fields of `lane_data` before falling back to material matching.
-- `PresetBundle::sync_ams_list()` and `get_ams_cobox_infos()` get a name-based fallback for user
-  presets without `filament_id`.
-
-**Notes.** Only base profiles (`inherits` empty) keep their own `filament_id`; profiles that
-inherit from a system profile do not. kobra-spoolman therefore creates base profiles.
-The printer agent must be set to *Moonraker*.
-
-**Drop when** #14423 is merged. The build then reports the patch as *skipped (already in Orca)*.
 
 ## 0003: slice statistics for plugins
 
